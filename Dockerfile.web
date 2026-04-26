@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+
+# 复制所有服务文件
+COPY pe_data_service.py pe_data_service_extended.py neodata_query.py ./stock_list.json ./
+COPY html/ ./html/
+
+EXPOSE 5000
+
+# 默认启动扩展版，如需切换可覆盖命令
+CMD ["python", "pe_data_service_extended.py"]

@@ -1,0 +1,11 @@
+# Python依赖包
+flask>=2.0.0
+flask-cors>=3.0.0
+requests>=2.25.0
+# sqlite3>=2.6.0  # Python标准库，这里只是标注
+
+# neoData查询需要
+# requests已经在上面
+
+# 开发依赖（可选）
+python-dotenv>=0.19.0

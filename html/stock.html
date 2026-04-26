@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模拟炒股 - 个股收益分析</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 14px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #58a6ff;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .search-wrap {
+      flex: 1;
+      max-width: 420px;
+      position: relative;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #c9d1d9;
+      font-size: 14px;
+      transition: border-color .2s;
+    }
+    .search-wrap input:focus { outline: none; border-color: #58a6ff; }
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6e7681;
+      pointer-events: none;
+    }
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+      display: none;
+      z-index: 999;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+    .dropdown.show { display: block; }
+    .drop-item {
+      padding: 11px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background .15s;
+    }
+    .drop-item:last-child { border-bottom: none; }
+    .drop-item:hover { background: #21262d; }
+    .drop-code { color: #58a6ff; font-weight: 600; font-size: 14px; }
+    .drop-name { color: #8b949e; font-size: 13px; }
+
+    /* ===== LAYOUT ===== */
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 24px;
+    }
+    @media (max-width: 1100px) {
+      .page { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 22px;
+    }
+    .card + .card { margin-top: 20px; }
+
+    /* ===== STOCK INFO BAR ===== */
+    .stock-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .s-code { font-size: 26px; font-weight: 700; color: #f0f6fc; }
+    .s-name { font-size: 16px; color: #8b949e; }
+    .placeholder-hint {
+      width: 100%;
+      text-align: center;
+      padding: 40px 0;
+      color: #484f58;
+      font-size: 15px;
+    }
+
+    /* ===== CHART ===== */
+    .chart-card { height: 520px; padding: 20px; position: relative; }
+    #chart { width: 100%; height: 100%; }
+
+    /* 分红标签叠加层 —— 完全覆盖在 #chart 上 */
+    #divOverlay {
+      position: absolute;
+      left: 20px; right: 20px; top: 20px; bottom: 20px;
+      pointer-events: none;
+    }
+    .div-marker {
+      position: absolute;
+      bottom: 58px;  /* dataZoom slider(bottom:28) + slider height(24) + 6px间距 */
+      transform: translateX(-50%);
+      cursor: pointer;
+      pointer-events: all;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .div-marker-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .div-marker:hover .div-marker-dot {
+      transform: scale(1.25);
+      box-shadow: 0 2px 8px rgba(0,0,0,.6);
+    }
+    .div-marker-dot.cash      { background: #e6a817; }
+    .div-marker-dot.bonus     { background: #3fb950; }
+    .div-marker-dot.transfer  { background: #58a6ff; }
+    .div-marker-dot.rights    { background: #bc8cff; }
+    .div-marker-dot.mixed     { background: linear-gradient(135deg,#e6a817,#3fb950); }
+    .div-marker-dot.allotment { background: #a371f7; }  /* 配股专用紫色 */
+
+    /* 分红浮窗 */
+    #divTooltip {
+      position: fixed;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #c9d1d9;
+      pointer-events: none;
+      z-index: 9999;
+      min-width: 160px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.6);
+      display: none;
+    }
+    #divTooltip .dt-date { color: #8b949e; font-size: 11px; margin-bottom: 6px; }
+    #divTooltip .dt-row  { display: flex; justify-content: space-between; gap: 20px; padding: 2px 0; }
+    #divTooltip .dt-label { color: #8b949e; }
+    #divTooltip .dt-val   { color: #f0f6fc; font-weight: 600; }
+
+    /* ===== Flatpickr 深色覆盖 ===== */
+    .flatpickr-calendar.dark {
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.7);
+    }
+    .flatpickr-calendar.dark .flatpickr-day.selected,
+    .flatpickr-calendar.dark .flatpickr-day.selected:hover {
+      background: #58a6ff;
+      border-color: #58a6ff;
+    }
+    .flatpickr-calendar.dark .flatpickr-day:hover {
+      background: #21262d;
+    }
+    .flatpickr-calendar.dark .flatpickr-day.flatpickr-disabled,
+    .flatpickr-calendar.dark .flatpickr-day.flatpickr-disabled:hover {
+      color: #484f58;
+    }
+    /* 日期输入框样式 */
+    .date-input-wrap {
+      position: relative;
+    }
+    .date-input-wrap .cal-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6e7681;
+      pointer-events: none;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block;
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .form-row input, .form-row select {
+      width: 100%;
+      padding: 9px 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 14px;
+      transition: border-color .2s;
+    }
+    .form-row input:focus, .form-row select:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn-calc {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #238636, #2ea043);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+      margin-top: 4px;
+    }
+    .btn-calc:hover { opacity: .88; }
+    .btn-calc:disabled { background: #30363d; color: #484f58; cursor: not-allowed; }
+
+    /* ===== RESULT ===== */
+    .result-wrap { display: none; }
+    .result-wrap.show { display: block; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric {
+      background: #0d1117;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .metric-label { font-size: 11px; color: #6e7681; text-transform: uppercase; margin-bottom: 4px; }
+    .metric-value { font-size: 20px; font-weight: 700; }
+    .metric-value.green { color: #f85149; }  /* 中国习惯：赚钱红色 */
+    .metric-value.red { color: #3fb950; }    /* 中国习惯：亏钱绿色 */
+    .metric-value.blue { color: #58a6ff; }
+    .metric-value.gray { color: #c9d1d9; }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin: 16px 0 10px;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #21262d;
+      font-size: 13px;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #8b949e; }
+    .detail-val { color: #c9d1d9; font-weight: 500; }
+    .detail-val.pos { color: #f85149; }  /* 中国习惯：盈利红色 */
+    .detail-val.neg { color: #3fb950; }  /* 中国习惯：亏损绿色 */
+
+    /* profit breakdown bar */
+    .bar-wrap { margin: 12px 0; }
+    .bar-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 6px;
+    }
+    .bar-bg {
+      height: 8px;
+      border-radius: 4px;
+      background: #21262d;
+      overflow: hidden;
+      display: flex;
+    }
+    .bar-stock { background: #58a6ff; height: 100%; transition: width .5s ease; }
+    .bar-dividend { background: #3fb950; height: 100%; transition: width .5s ease; }
+    .bar-cost { background: #f85149; height: 100%; transition: width .5s ease; }
+
+    /* dividend table */
+    .div-list { max-height: 240px; overflow-y: auto; }
+    .div-item {
+      background: #0d1117;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .div-date { color: #58a6ff; font-weight: 600; margin-bottom: 4px; }
+    .div-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tag.cash { background: rgba(63,185,80,.15); color: #3fb950; }
+    .tag.bonus { background: rgba(88,166,255,.15); color: #58a6ff; }
+    .tag.transfer { background: rgba(210,153,34,.15); color: #d2991c; }
+
+    .empty-div {
+      text-align: center;
+      padding: 20px;
+      color: #484f58;
+      font-size: 13px;
+    }
+
+    .fee-note {
+      font-size: 11px;
+      color: #484f58;
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+
+    .disclaimer {
+      margin-top: 24px;
+      padding: 12px 16px;
+      background: rgba(30,30,30,.6);
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #6e7681;
+      line-height: 1.7;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .err-box {
+      background: rgba(248,81,73,.1);
+      border: 1px solid rgba(248,81,73,.4);
+      color: #f85149;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 分红悬浮提示 -->
+<div id="divTooltip">
+  <div class="dt-date" id="dtt-date"></div>
+  <div id="dtt-rows"></div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-inner">
+    <a href="/" class="logo">📈 上证大盘PE</a>
+    <div class="search-wrap">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="代码 / 名称 / 拼音（如 600519 / 茅台 / gzmt）" autocomplete="off">
+      <div class="dropdown" id="dropdown"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<div class="page">
+
+  <!-- LEFT COLUMN -->
+  <div>
+    <!-- Stock info bar -->
+    <div class="card" id="infoCard">
+      <div id="stockBar">
+        <div class="placeholder-hint">🔍 请在顶部搜索框输入股票代码或名称</div>
+      </div>
+    </div>
+
+    <!-- K线图 -->
+    <div class="card chart-card" id="chartCard" style="margin-top:20px; position:relative;">
+      <div id="chart" style="position:relative;"></div>
+      <div id="divOverlay"></div>
+    </div>
+
+    <!-- 大盘PE走势图 -->
+    <div class="card" id="marketPeCard" style="margin-top:20px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div style="font-size:15px; font-weight:600; color:#f0f6fc;">📊 上证大盘市盈率历史走势</div>
+        <div id="peStats" style="display:flex; gap:16px; font-size:12px; color:#8b949e;">
+          <span>当前: <b id="peCurrent" style="color:#58a6ff">--</b></span>
+          <span>分位: <b id="pePercentile" style="color:#58a6ff">--</b></span>
+          <span>平均: <b id="peAvg" style="color:#8b949e">--</b></span>
+        </div>
+      </div>
+      <div id="peChart" style="width:100%; height:280px;"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- 交易输入 -->
+    <div class="card" id="tradePanel">
+      <div class="panel-title">📝 模拟交易参数</div>
+
+      <div class="form-row">
+        <label>买入日期</label>
+        <div class="date-input-wrap">
+          <input type="text" id="buyDate" placeholder="选择买入日期" readonly>
+          <svg class="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="form-row">
+          <label>买入金额（元）</label>
+          <input type="number" id="buyAmount" placeholder="100000" min="1000" step="1000">
+        </div>
+        <div class="form-row">
+          <label>手续费率（%）</label>
+          <input type="number" id="commRate" value="0.03" min="0.01" max="0.3" step="0.01">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>卖出日期</label>
+        <div class="date-input-wrap">
+          <input type="text" id="sellDate" placeholder="选择卖出日期" readonly>
+          <svg class="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+      </div>
+
+      <button class="btn-calc" id="calcBtn" disabled>计算收益</button>
+      <div id="calcErr"></div>
+    </div>
+
+    <!-- 结果 -->
+    <div class="card result-wrap" id="resultPanel">
+      <div class="panel-title">📊 收益分析</div>
+
+      <!-- 核心指标 -->
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">总收益</div>
+          <div class="metric-value" id="r-total-profit">--</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">总收益率</div>
+          <div class="metric-value" id="r-total-rate">--</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">年化收益率</div>
+          <div class="metric-value" id="r-annual">--</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">持仓天数</div>
+          <div class="metric-value gray" id="r-days">--</div>
+        </div>
+      </div>
+
+      <!-- 收益构成条形 -->
+      <div class="section-label">收益构成</div>
+      <div class="bar-wrap">
+        <div class="bar-label-row">
+          <span>🔵 股价收益</span>
+          <span>🟢 现金分红</span>
+          <span>🔴 交易费用</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-stock" id="barStock" style="width:0%"></div>
+          <div class="bar-dividend" id="barDividend" style="width:0%"></div>
+          <div class="bar-cost" id="barCost" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- 买入信息 -->
+      <div class="section-label">买入</div>
+      <div class="detail-row"><span class="detail-label">买入日期</span><span class="detail-val" id="r-buy-date">--</span></div>
+      <div class="detail-row"><span class="detail-label">买入价（收盘）</span><span class="detail-val" id="r-buy-price">--</span></div>
+      <div class="detail-row"><span class="detail-label">买入股数</span><span class="detail-val" id="r-buy-shares">--</span></div>
+      <div class="detail-row"><span class="detail-label">实际投入</span><span class="detail-val" id="r-buy-cost">--</span></div>
+      <div class="detail-row"><span class="detail-label">佣金</span><span class="detail-val neg" id="r-buy-comm">--</span></div>
+
+      <!-- 持仓期间 -->
+      <div class="section-label">持仓期间 · 分红送转</div>
+      <div id="dividendList" class="div-list"></div>
+
+      <!-- 分红统计 -->
+      <div id="divStats" style="background:#0d1117;border-radius:8px;padding:12px;margin-top:12px;display:none;">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">分红统计</div>
+        <div class="metric-grid" style="grid-template-columns:1fr 1fr;gap:8px;margin:0;">
+          <div class="metric" style="padding:10px;">
+            <div class="metric-label">分红次数</div>
+            <div class="metric-value blue" id="r-div-count" style="font-size:16px;">--</div>
+          </div>
+          <div class="metric" style="padding:10px;">
+            <div class="metric-label">年均分红</div>
+            <div class="metric-value blue" id="r-div-per-year" style="font-size:16px;">--</div>
+          </div>
+          <div class="metric" style="padding:10px;">
+            <div class="metric-label">现金分红收益率</div>
+            <div class="metric-value green" id="r-div-yield" style="font-size:16px;">--</div>
+          </div>
+          <div class="metric" style="padding:10px;">
+            <div class="metric-label">年化分红率</div>
+            <div class="metric-value green" id="r-div-annual-yield" style="font-size:16px;">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配股信息 -->
+      <div id="allotmentSection" style="display:none;">
+        <div class="section-label">📢 配股认购（已自动参与）</div>
+        <div id="allotmentList" class="div-list"></div>
+        <div class="detail-row" style="margin-top:8px">
+          <span class="detail-label">配股认购成本</span>
+          <span class="detail-val neg" id="r-allotment-cost">--</span>
+        </div>
+      </div>
+
+      <div class="detail-row" style="margin-top:12px">
+        <span class="detail-label">现金分红合计</span>
+        <span class="detail-val pos" id="r-div-total">--</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">最终持仓股数</span>
+        <span class="detail-val blue" id="r-final-shares">--</span>
+      </div>
+
+      <!-- 卖出信息 -->
+      <div class="section-label">卖出</div>
+      <div class="detail-row"><span class="detail-label">卖出日期</span><span class="detail-val" id="r-sell-date">--</span></div>
+      <div class="detail-row"><span class="detail-label">卖出价（收盘）</span><span class="detail-val" id="r-sell-price">--</span></div>
+      <div class="detail-row"><span class="detail-label">卖出金额</span><span class="detail-val" id="r-sell-amount">--</span></div>
+      <div class="detail-row"><span class="detail-label">佣金 + 印花税</span><span class="detail-val neg" id="r-sell-fee">--</span></div>
+      <div class="detail-row" id="r-bonus-tax-row" style="display:none;"><span class="detail-label">送股所得税</span><span class="detail-val neg" id="r-bonus-tax">--</span></div>
+      <div class="detail-row"><span class="detail-label">实际到手</span><span class="detail-val" id="r-net-sell">--</span></div>
+
+      <!-- 收益汇总 -->
+      <div class="section-label">收益汇总</div>
+      <div class="detail-row"><span class="detail-label">股价波动收益</span><span class="detail-val" id="r-stock-profit">--</span></div>
+      <div class="detail-row"><span class="detail-label">现金分红收入</span><span class="detail-val pos" id="r-div-income">--</span></div>
+      <div class="detail-row"><span class="detail-label">总交易费用</span><span class="detail-val neg" id="r-total-fee">--</span></div>
+      <div class="detail-row">
+        <span class="detail-label" style="font-weight:600;color:#f0f6fc">综合净收益</span>
+        <span class="detail-val" style="font-size:16px;font-weight:700" id="r-net-profit">--</span>
+      </div>
+
+      <div class="fee-note">
+        ※ 买入佣金按设定费率计算（最低5元）；卖出另加印花税0.1%；过户费0.002%。<br>
+        ※ 红利税：持股不满1个月20%，1-12个月10%，超1年免税（已简化处理）。
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      本工具仅供个人学习使用，不构成任何投资建议。历史收益不代表未来表现。股市有风险，投资需谨慎。
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================================================
+// 配置
+// ========================================================
+const API_BASE = '/api';   // 生产环境，通过 Nginx 代理
+// const API_BASE = 'http://localhost:5000/api';  // 本地开发时打开这行
+
+// ========================================================
+// 状态
+// ========================================================
+let currentCode = null;
+let klineData    = null;   // {dates, opens, closes, highs, lows, vols}
+let dividendData = null;   // [{date, cash, bonus, transfer, ex_date}, ...]
+let allotmentData = null;  // [{date, ex_date, price, ratio}, ...]
+let chartInst    = null;
+let peChartInst  = null;   // 大盘PE图表实例
+let searchTimer  = null;
+let allLoaded    = false;  // 是否已加载全部历史
+let isLoadingHistory = false;  // 是否正在加载更早数据
+
+// ========================================================
+// 初始化
+// ========================================================
+document.addEventListener('DOMContentLoaded', () => {
+  initChart();
+  initPeChart();
+  bindEvents();
+  
+  // URL 参数自动加载
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code');
+  if (code) loadStock(code);
+  
+  // 加载大盘PE数据
+  loadMarketPeData();
+});
+
+function initChart() {
+  chartInst = echarts.init(document.getElementById('chart'), 'dark');
+  window.addEventListener('resize', () => {
+    chartInst.resize();
+    setTimeout(renderDividendMarkers, 100);
+  });
+  // 监听缩放事件，重新渲染分红标签
+  chartInst.on('dataZoom', onChartZoom);
+  chartInst.setOption({
+    backgroundColor: 'transparent',
+    grid: [
+      { left: 60, right: 60, top: 30, bottom: 120, containLabel: false },
+      { left: 60, right: 60, top: '72%', bottom: 60, containLabel: false }
+    ],
+    xAxis: [
+      { type: 'category', data: [], boundaryGap: false, axisLine: { lineStyle: { color: '#30363d' } }, axisLabel: { color: '#6e7681' }, splitLine: { show: false } },
+      { type: 'category', data: [], gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { show: false } }
+    ],
+    yAxis: [
+      { scale: true, axisLine: { show: false }, axisLabel: { color: '#6e7681' }, splitLine: { lineStyle: { color: '#21262d' } } },
+      { gridIndex: 1, scale: true, axisLabel: { show: false }, splitLine: { show: false } }
+    ],
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0,1], start: 0, end: 100 },
+      { type: 'slider', xAxisIndex: [0,1], bottom: 28, height: 24, borderColor: '#30363d', fillerColor: 'rgba(88,166,255,.12)', textStyle: { color: '#6e7681' } }
+    ],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross', crossStyle: { color: '#484f58' } },
+      backgroundColor: '#1c2128',
+      borderColor: '#30363d',
+      textStyle: { color: '#c9d1d9', fontSize: 12 },
+      formatter: klineTooltip
+    },
+    series: []
+  });
+}
+
+// ========== 大盘PE图表 ==========
+function initPeChart() {
+  peChartInst = echarts.init(document.getElementById('peChart'), 'dark');
+  window.addEventListener('resize', () => {
+    peChartInst && peChartInst.resize();
+  });
+  
+  peChartInst.setOption({
+    backgroundColor: 'transparent',
+    grid: { left: 60, right: 40, top: 20, bottom: 60 },
+    xAxis: {
+      type: 'category',
+      data: [],
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: '#30363d' } },
+      axisLabel: { color: '#6e7681', fontSize: 11 },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLine: { show: false },
+      axisLabel: { color: '#6e7681', fontSize: 11, formatter: '{value}x' },
+      splitLine: { lineStyle: { color: '#21262d' } }
+    },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { type: 'slider', bottom: 10, height: 20, borderColor: '#30363d', fillerColor: 'rgba(88,166,255,.12)', textStyle: { color: '#6e7681', fontSize: 10 } }
+    ],
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#1c2128',
+      borderColor: '#30363d',
+      textStyle: { color: '#c9d1d9', fontSize: 12 },
+      formatter: function(params) {
+        const p = params[0];
+        return `<div style="padding:4px 0">
+          <div style="color:#8b949e;margin-bottom:4px;font-size:11px">${p.name}</div>
+          <div style="color:#58a6ff;font-size:14px;font-weight:700">PE: ${p.value.toFixed(2)}x</div>
+        </div>`;
+      }
+    },
+    series: [{
+      name: 'PE',
+      type: 'line',
+      data: [],
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { color: '#58a6ff', width: 2 },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(88,166,255,0.3)' },
+          { offset: 1, color: 'rgba(88,166,255,0.05)' }
+        ])
+      }
+    }]
+  });
+}
+
+async function loadMarketPeData() {
+  try {
+    const res = await fetch(`${API_BASE}/market/pe`);
+    if (!res.ok) {
+      console.log('[INFO] Market PE data not available yet');
+      return;
+    }
+    
+    const json = await res.json();
+    if (json.error || !json.data) {
+      console.log('[INFO] No PE data available');
+      return;
+    }
+    
+    const dates = json.data.map(d => d.date);
+    const peValues = json.data.map(d => d.pe);
+    
+    // 更新统计信息
+    if (json.stats) {
+      document.getElementById('peCurrent').textContent = json.stats.current ? json.stats.current.toFixed(2) + 'x' : '--';
+      document.getElementById('pePercentile').textContent = json.stats.percentile ? json.stats.percentile.toFixed(1) + '%' : '--';
+      document.getElementById('peAvg').textContent = json.stats.avg ? json.stats.avg.toFixed(2) + 'x' : '--';
+    }
+    
+    // 更新图表
+    peChartInst.setOption({
+      xAxis: { data: dates },
+      series: [{ data: peValues }]
+    });
+    
+  } catch (e) {
+    console.log('[INFO] Failed to load market PE data:', e.message);
+  }
+}
+
+function klineTooltip(params) {
+  const k = params.find(p => p.seriesName === 'K线');
+  if (!k) return '';
+  const [open, close, low, high] = k.value;
+  const color = close >= open ? '#f85149' : '#3fb950';
+  const pct = open > 0 ? ((close - open) / open * 100).toFixed(2) : '0.00';
+  const sign = pct >= 0 ? '+' : '';
+  
+  // 查找该日期的分红送转信息
+  let divInfo = '';
+  if (dividendData && dividendData.length > 0) {
+    const dateStr = k.name;
+    const div = dividendData.find(d => {
+      const dStr = (d.date || d.ex_date || '').slice(0, 10);
+      return dStr === dateStr;
+    });
+    if (div) {
+      const items = [];
+      const cash = parseFloat(div.cash || 0);
+      const bonus = parseFloat(div.bonus || 0);
+      const transfer = parseFloat(div.transfer || 0);
+      const rights = parseFloat(div.rights || 0);
+      if (cash > 0) items.push(`现金分红: ${cash.toFixed(3)}元/股`);
+      if (bonus > 0) items.push(`送股: ${bonus.toFixed(2)}股/股`);
+      if (transfer > 0) items.push(`转增: ${transfer.toFixed(2)}股/股`);
+      if (rights > 0) items.push(`配股: ${rights.toFixed(2)}股/股`);
+      if (items.length > 0) {
+        divInfo = `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #30363d;font-size:11px;color:#58a6ff">
+          📢 ${items.join(' · ')}
+        </div>`;
+      }
+    }
+  }
+  
+  return `<div style="padding:4px 0">
+    <div style="color:#8b949e;margin-bottom:6px;font-size:11px">${k.name}</div>
+    <div style="color:${color};font-size:16px;font-weight:700;margin-bottom:4px">${close.toFixed(2)} <span style="font-size:12px">${sign}${pct}%</span></div>
+    <div style="font-size:12px;color:#8b949e">
+      开 <b style="color:#c9d1d9">${open.toFixed(2)}</b> &nbsp;
+      高 <b style="color:#f85149">${high.toFixed(2)}</b> &nbsp;
+      低 <b style="color:#3fb950">${low.toFixed(2)}</b>
+    </div>
+    ${divInfo}
+  </div>`;
+}
+
+// ========================================================
+// 事件绑定
+// ========================================================
+let buyDatePicker = null;
+let sellDatePicker = null;
+
+function bindEvents() {
+  const searchInput = document.getElementById('searchInput');
+  const dropdown    = document.getElementById('dropdown');
+  const calcBtn     = document.getElementById('calcBtn');
+
+  searchInput.addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    const q = e.target.value.trim();
+    if (!q) { dropdown.classList.remove('show'); return; }
+    searchTimer = setTimeout(() => doSearch(q), 300);
+  });
+
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const q = e.target.value.trim();
+      if (/^\d{6}$/.test(q)) loadStock(q);
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) dropdown.classList.remove('show');
+  });
+
+  calcBtn.addEventListener('click', calculate);
+
+  // 初始化日期选择器（占位，等股票加载后设置范围）
+  initDatePickers();
+}
+
+function initDatePickers(minDate, maxDate) {
+  const buyInput = document.getElementById('buyDate');
+  const sellInput = document.getElementById('sellDate');
+
+  // 销毁旧的
+  if (buyDatePicker) { buyDatePicker.destroy(); buyDatePicker = null; }
+  if (sellDatePicker) { sellDatePicker.destroy(); sellDatePicker = null; }
+
+  const commonCfg = {
+    locale: 'zh',
+    theme: 'dark',
+    dateFormat: 'Y-m-d',
+    enableTime: false,
+    minDate: minDate || null,
+    maxDate: maxDate || null,
+    disableMobile: true
+  };
+
+  buyDatePicker = flatpickr(buyInput, {
+    ...commonCfg,
+    onChange: (dates) => {
+      if (dates[0] && sellDatePicker) {
+        sellDatePicker.set('minDate', dates[0]);
+      }
+    }
+  });
+
+  sellDatePicker = flatpickr(sellInput, {
+    ...commonCfg,
+    onChange: (dates) => {
+      if (dates[0] && buyDatePicker) {
+        buyDatePicker.set('maxDate', dates[0]);
+      }
+    }
+  });
+}
+
+// ========================================================
+// 搜索
+// ========================================================
+async function doSearch(q) {
+  const dropdown = document.getElementById('dropdown');
+  try {
+    const res  = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
+    const list = await res.json();
+    if (!Array.isArray(list) || list.length === 0) {
+      dropdown.innerHTML = '<div class="drop-item"><span class="drop-name">未找到相关股票</span></div>';
+    } else {
+      dropdown.innerHTML = list.map(s =>
+        `<div class="drop-item" onclick="loadStock('${s.code}')">
+          <span class="drop-code">${s.code}</span>
+          <span class="drop-name">${s.name}</span>
+        </div>`
+      ).join('');
+    }
+    dropdown.classList.add('show');
+  } catch {
+    dropdown.classList.remove('show');
+  }
+}
+
+// ========================================================
+// 加载股票
+// ========================================================
+async function loadStock(code) {
+  currentCode = code;
+  allLoaded = false;
+  isLoadingHistory = false;
+  document.getElementById('dropdown').classList.remove('show');
+  document.getElementById('searchInput').value = code;
+
+  setInfo(`<span class="loading-spinner"></span>加载中…`);
+  document.getElementById('calcBtn').disabled = true;
+  document.getElementById('resultPanel').classList.remove('show');
+
+  // 并发获取 K线 + 分红 + 配股
+  try {
+    const [kRes, dRes, aRes] = await Promise.all([
+      fetch(`${API_BASE}/stock/${code}`),
+      fetch(`${API_BASE}/dividend/${code}`),
+      fetch(`${API_BASE}/allotment/${code}`)
+    ]);
+    const kJson = await kRes.json();
+    const dJson = await dRes.json();
+    const aJson = await aRes.json();
+
+    if (kJson.error) { setInfo(`<div class="err-box">❌ ${kJson.error}</div>`); return; }
+
+    // 解析 K线
+    klineData = {
+      dates:  kJson.kline.map(r => r['日期']),
+      opens:  kJson.kline.map(r => r['开盘']),
+      closes: kJson.kline.map(r => r['收盘']),
+      highs:  kJson.kline.map(r => r['最高']),
+      lows:   kJson.kline.map(r => r['最低']),
+      vols:   kJson.kline.map(r => r['成交量'])
+    };
+    dividendData = dJson.dividends || [];
+    allotmentData = aJson.allotments || [];
+    allLoaded = kJson.all_loaded || false;
+
+    // 更新股票信息栏
+    const lastClose = klineData.closes[klineData.closes.length - 1];
+    setInfo(`
+      <div class="stock-bar">
+        <span class="s-code">${code}</span>
+        <span class="s-name">${kJson.name || ''}</span>
+        <span style="margin-left:auto;color:#8b949e;font-size:13px">最新：<b style="color:#f0f6fc">${lastClose.toFixed(2)}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">← 拖动加载更多历史</span></span>
+      </div>
+    `);
+
+    renderChart();
+
+    // 设置日期选择器范围
+    const firstDate = klineData.dates[0];
+    const lastDate = klineData.dates[klineData.dates.length - 1];
+    initDatePickers(firstDate, lastDate);
+
+    document.getElementById('calcBtn').disabled = false;
+    history.replaceState({}, '', `?code=${code}`);
+  } catch (e) {
+    setInfo(`<div class="err-box">❌ 网络错误：${e.message}</div>`);
+  }
+}
+
+// ========== 按需增量加载历史数据（炒股软件式） ==========
+function onChartZoom() {
+  // 检查是否拖到了数据最左边界
+  if (allLoaded || isLoadingHistory || !klineData || !chartInst) return;
+
+  const opt = chartInst.getOption();
+  const dz = (opt.dataZoom || []).find(z => z.type === 'inside') || opt.dataZoom[0] || {};
+  const startPct = (dz.start != null) ? dz.start : 0;
+
+  // 当缩放到最左边10%以内时，触发加载更早数据
+  if (startPct < 5) {
+    loadEarlierData();
+  }
+
+  // 渲染分红标签
+  renderDividendMarkers();
+}
+
+async function loadEarlierData() {
+  if (isLoadingHistory || allLoaded || !currentCode) return;
+  isLoadingHistory = true;
+
+  const earliestDate = klineData.dates[0];
+
+  // 在信息栏显示加载状态
+  const bar = document.querySelector('.stock-bar');
+  if (bar) {
+    const hint = bar.querySelector('span[style*="font-size:11px"]') || bar.lastElementChild;
+    if (hint) hint.innerHTML = '⏳ 正在加载更早数据…';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/stock/${currentCode}/history?before=${earliestDate}`);
+    const json = await res.json();
+
+    if (json.error) {
+      console.log('[WARN] 增量加载失败:', json.error);
+      isLoadingHistory = false;
+      return;
+    }
+
+    if (!json.kline || json.kline.length === 0) {
+      allLoaded = true;
+      isLoadingHistory = false;
+      updateBarHint('已加载全部历史');
+      return;
+    }
+
+    // 将新数据 prepend 到 klineData
+    const newKline = json.kline;
+    const newDates  = newKline.map(r => r['日期']);
+    const newOpens  = newKline.map(r => r['开盘']);
+    const newCloses = newKline.map(r => r['收盘']);
+    const newHighs  = newKline.map(r => r['最高']);
+    const newLows   = newKline.map(r => r['最低']);
+    const newVols   = newKline.map(r => r['成交量']);
+
+    // 过滤掉和现有数据重复的日期
+    const existingSet = new Set(klineData.dates);
+    const uniqueDates = [], uniqueOpens = [], uniqueCloses = [], uniqueHighs = [], uniqueLows = [], uniqueVols = [];
+    for (let i = 0; i < newDates.length; i++) {
+      if (!existingSet.has(newDates[i])) {
+        uniqueDates.push(newDates[i]);
+        uniqueOpens.push(newOpens[i]);
+        uniqueCloses.push(newCloses[i]);
+        uniqueHighs.push(newHighs[i]);
+        uniqueLows.push(newLows[i]);
+        uniqueVols.push(newVols[i]);
+      }
+    }
+
+    if (uniqueDates.length === 0) {
+      allLoaded = true;
+      isLoadingHistory = false;
+      updateBarHint('已加载全部历史');
+      return;
+    }
+
+    klineData = {
+      dates:  [...uniqueDates, ...klineData.dates],
+      opens:  [...uniqueOpens, ...klineData.opens],
+      closes: [...uniqueCloses, ...klineData.closes],
+      highs:  [...uniqueHighs, ...klineData.highs],
+      lows:   [...uniqueLows, ...klineData.lows],
+      vols:   [...uniqueVols, ...klineData.vols]
+    };
+
+    allLoaded = json.all_loaded || false;
+
+    // 计算prepend了多少条数据占总数据量的百分比
+    const prependedRatio = (uniqueDates.length / klineData.dates.length) * 100;
+    // 调整dataZoom保持用户看到的内容不变
+    const opt = chartInst.getOption();
+    const dz = (opt.dataZoom || []).find(z => z.type === 'inside') || opt.dataZoom[0] || {};
+    const currentStart = (dz.start != null) ? dz.start : 0;
+    const currentEnd = (dz.end != null) ? dz.end : 100;
+    const newStart = currentStart + prependedRatio;
+    const newEnd = currentEnd + prependedRatio;
+
+    renderChart();
+
+    // 恢复缩放范围（右移以保持当前可见区域）
+    chartInst.dispatchAction({
+      type: 'dataZoom',
+      start: Math.min(newStart, 100),
+      end: Math.min(newEnd, 100)
+    });
+
+    // 更新日期选择器
+    const firstDate = klineData.dates[0];
+    const lastDate = klineData.dates[klineData.dates.length - 1];
+    initDatePickers(firstDate, lastDate);
+
+    if (allLoaded) {
+      updateBarHint('已加载全部历史');
+    } else {
+      updateBarHint('← 继续拖动加载更多历史');
+    }
+
+    console.log(`[INFO] 增量加载完成: +${uniqueDates.length}条, 总计${klineData.dates.length}条, 最早=${klineData.dates[0]}`);
+  } catch (e) {
+    console.log('[ERROR] 增量加载出错:', e.message);
+  } finally {
+    isLoadingHistory = false;
+  }
+}
+
+function updateBarHint(text) {
+  const bar = document.querySelector('.stock-bar');
+  if (!bar) return;
+  // 更新交易日的总计数
+  const countSpan = bar.querySelector('span[style*="margin-left"]');
+  if (countSpan) {
+    countSpan.innerHTML = `最新：<b style="color:#f0f6fc">${klineData.closes[klineData.closes.length - 1].toFixed(2)}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">${text}</span>`;
+  }
+}
+
+function setInfo(html) {
+  document.getElementById('stockBar').innerHTML = html;
+}
+
+// ========================================================
+// 渲染K线图（带买卖标记）
+// ========================================================
+function renderChart(buyMark, sellMark) {
+  const candleData = klineData.dates.map((_, i) => [
+    klineData.opens[i],
+    klineData.closes[i],
+    klineData.lows[i],
+    klineData.highs[i]
+  ]);
+
+  const markPoints = [];
+  if (buyMark) {
+    markPoints.push({ name:'买入', coord:[buyMark.date, buyMark.price],
+      symbol:'pin', symbolSize:50,
+      itemStyle:{ color:'#3fb950', shadowBlur:10, shadowColor:'rgba(63,185,80,0.5)' },  // 买入=支出=绿色
+      label:{ formatter:'B', color:'#fff', fontWeight:'bold', fontSize:14, position:'inside' }
+    });
+  }
+  if (sellMark) {
+    markPoints.push({ name:'卖出', coord:[sellMark.date, sellMark.price],
+      symbol:'pin', symbolSize:50,
+      itemStyle:{ color:'#f85149', shadowBlur:10, shadowColor:'rgba(248,81,73,0.5)' },  // 卖出=收入=红色
+      label:{ formatter:'S', color:'#fff', fontWeight:'bold', fontSize:14, position:'inside' }
+    });
+  }
+  
+  // 分红标注已移到时间轴下方（renderDividendMarkers函数处理）
+
+  chartInst.setOption({
+    xAxis: [
+      { data: klineData.dates },
+      { data: klineData.dates }
+    ],
+    series: [
+      {
+        name: 'K线',
+        type: 'candlestick',
+        xAxisIndex: 0, yAxisIndex: 0,
+        data: candleData,
+        itemStyle: {
+          color: '#f85149',         // 阳线（涨）- 红色
+          color0: '#3fb950',        // 阴线（跌）- 绿色
+          borderColor: '#f85149',
+          borderColor0: '#3fb950'
+        },
+        markPoint: markPoints.length ? { data: markPoints } : undefined
+      },
+      {
+        name: '成交量',
+        type: 'bar',
+        xAxisIndex: 1, yAxisIndex: 1,
+        data: klineData.vols.map((v, i) => ({
+          value: v,
+          itemStyle: { color: klineData.closes[i] >= klineData.opens[i] ? '#f85149' : '#3fb950', opacity: .6 }
+        }))
+      }
+    ]
+  }, false);
+
+  // 渲染时间轴下方的分红标签（延迟等待ECharts布局完成）
+  setTimeout(renderDividendMarkers, 50);
+}
+
+// ========================================================
+// 渲染时间轴下方的分红/配股标签
+// ========================================================
+function renderDividendMarkers() {
+  const overlay = document.getElementById('divOverlay');
+  overlay.innerHTML = '';
+
+  if (!klineData || !chartInst) return;
+
+  // 获取图表当前显示范围（用于过滤不可见区域）
+  const opt = chartInst.getOption();
+  const dz = (opt.dataZoom || []).find(z => z.type === 'inside') || opt.dataZoom[0] || {};
+  const startPct = (dz.start != null) ? dz.start : 0;
+  const endPct   = (dz.end   != null) ? dz.end   : 100;
+  const total = klineData.dates.length;
+  const startIdx = Math.floor(startPct / 100 * total);
+  const endIdx   = Math.ceil(endPct   / 100 * total);
+
+  // 使用 ECharts convertToPixel 精确计算横坐标
+  const chartDom = document.getElementById('chart');
+  const chartRect = chartDom.getBoundingClientRect();
+  const getX = (dateStr) => {
+    try {
+      const pt = chartInst.convertToPixel({ xAxisIndex: 0 }, dateStr);
+      return pt != null ? pt : -9999;
+    } catch(e) { return -9999; }
+  };
+
+  // 合并分红和配股数据，按日期分组
+  const eventMap = new Map();
+  
+  // 先收集所有分红数据
+  if (dividendData && dividendData.length > 0) {
+    dividendData.forEach(div => {
+      // 优先用除权日(ex_date)，除权日才是K线中对应的交易日
+      const d = div.ex_date || div.date || '';
+      if (!d) return;
+      const dd = d.slice(0, 10);
+      if (!eventMap.has(dd)) {
+        eventMap.set(dd, { date: dd, types: [], divData: div, allotData: null });
+      }
+      const event = eventMap.get(dd);
+      const cash = parseFloat(div.cash || 0);
+      const bonus = parseFloat(div.bonus || 0);
+      const transfer = parseFloat(div.transfer || 0);
+      if (cash > 0) event.types.push('cash');
+      if (bonus > 0) event.types.push('bonus');
+      if (transfer > 0) event.types.push('transfer');
+    });
+  }
+  
+  // 再收集所有配股数据
+  if (allotmentData && allotmentData.length > 0) {
+    allotmentData.forEach(allot => {
+      // 优先用除权日(ex_date)，与K线日期对应
+      const d = allot.ex_date || allot.date || '';
+      if (!d) return;
+      const dd = d.slice(0, 10);
+      const ratio = parseFloat(allot.ratio || 0);
+      if (ratio <= 0) return;
+      
+      if (!eventMap.has(dd)) {
+        eventMap.set(dd, { date: dd, types: [], divData: null, allotData: allot });
+      }
+      const event = eventMap.get(dd);
+      event.types.push('allotment');
+      event.allotData = allot;
+    });
+  }
+  
+  // 渲染所有事件标签
+  const typeConfig = {
+    'cash': { label: '现', colorClass: 'cash' },
+    'bonus': { label: '送', colorClass: 'bonus' },
+    'transfer': { label: '转', colorClass: 'transfer' },
+    'allotment': { label: '配', colorClass: 'allotment' }
+  };
+  const typeOrder = ['cash', 'bonus', 'transfer', 'allotment'];
+  
+  eventMap.forEach((event, dd) => {
+    const dateIdx = klineData.dates.indexOf(dd);
+    if (dateIdx < 0 || dateIdx < startIdx || dateIdx > endIdx) return;
+    if (event.types.length === 0) return;
+    
+    const x = getX(dd);
+    if (x < 0 || x > chartRect.width) return; // 不在可视区域则跳过
+    
+    // 按固定顺序排序
+    event.types.sort((a, b) => typeOrder.indexOf(a) - typeOrder.indexOf(b));
+    
+    // 创建容器用于垂直排列，bottom 定位到 dataZoom slider 上方
+    const markerContainer = document.createElement('div');
+    markerContainer.className = 'div-marker';
+    markerContainer.style.left = `${x}px`;
+    markerContainer.style.pointerEvents = 'auto'; // 允许鼠标交互
+    
+    event.types.forEach((t, idx) => {
+      const config = typeConfig[t];
+      const dot = document.createElement('div');
+      dot.className = `div-marker-dot ${config.colorClass}`;
+      dot.textContent = config.label;
+      markerContainer.appendChild(dot);
+    });
+    
+    // 悬停显示详情
+    markerContainer.addEventListener('mouseenter', (e) => showCombinedTooltip(e, event, dd));
+    markerContainer.addEventListener('mouseleave', hideDivTooltip);
+    markerContainer.addEventListener('mousemove', moveDivTooltip);
+    
+    overlay.appendChild(markerContainer);
+  });
+}
+
+function showDivTooltip(e, div, dateStr) {
+  const tt = document.getElementById('divTooltip');
+  document.getElementById('dtt-date').textContent = dateStr;
+
+  const rows = [];
+  const cash = parseFloat(div.cash || 0);
+  const bonus = parseFloat(div.bonus || 0);
+  const transfer = parseFloat(div.transfer || 0);
+  const rights = parseFloat(div.rights || 0);
+
+  // 获取分红日前后股价
+  const dateIdx = klineData.dates.indexOf(dateStr);
+  let priceBefore = null, priceAfter = null;
+  if (dateIdx > 0) {
+    priceBefore = klineData.closes[dateIdx - 1];
+    priceAfter = klineData.closes[dateIdx];
+  }
+
+  // 现金分红收益率
+  if (cash > 0 && priceBefore) {
+    const yieldRate = (cash / priceBefore * 100).toFixed(2);
+    rows.push({ label: '现金分红', val: `${cash.toFixed(3)}元/股 (${yieldRate}%)` });
+  } else if (cash > 0) {
+    rows.push({ label: '现金分红', val: `${cash.toFixed(3)}元/股` });
+  }
+
+  if (bonus > 0) rows.push({ label: '送股', val: `${bonus.toFixed(2)}股/股` });
+  if (transfer > 0) rows.push({ label: '转增', val: `${transfer.toFixed(2)}股/股` });
+  if (rights > 0) rows.push({ label: '配股', val: `${rights.toFixed(2)}股/股` });
+
+  // 添加除权日前一天收盘价（不复权）
+  if (priceBefore > 0) {
+    rows.push({ label: '除权前收盘价', val: `¥${priceBefore.toFixed(2)}` });
+  }
+  if (priceAfter > 0 && priceBefore > 0) {
+    const change = ((priceAfter - priceBefore) / priceBefore * 100).toFixed(2);
+    const sign = change >= 0 ? '+' : '';
+    rows.push({ label: '除权后开盘价', val: `¥${priceAfter.toFixed(2)} (${sign}${change}%)` });
+  }
+
+  document.getElementById('dtt-rows').innerHTML = rows.map(r =>
+    `<div class="dt-row"><span class="dt-label">${r.label}</span><span class="dt-val">${r.val}</span></div>`
+  ).join('');
+
+  tt.style.display = 'block';
+  moveDivTooltip(e);
+}
+
+function moveDivTooltip(e) {
+  const tt = document.getElementById('divTooltip');
+  const x = e.clientX + 12;
+  const y = e.clientY - tt.offsetHeight - 10;
+  tt.style.left = `${x}px`;
+  tt.style.top = `${y}px`;
+}
+
+function hideDivTooltip() {
+  document.getElementById('divTooltip').style.display = 'none';
+}
+
+// 合并显示分红和配股tooltip
+function showCombinedTooltip(e, event, dateStr) {
+  const tt = document.getElementById('divTooltip');
+  const rows = [];
+  
+  // 获取除权日前一天收盘价（不复权）
+  const dateIdx = klineData.dates.indexOf(dateStr);
+  let priceBefore = null, priceAfter = null;
+  if (dateIdx > 0) {
+    priceBefore = klineData.closes[dateIdx - 1];
+    priceAfter = klineData.closes[dateIdx];
+  }
+  
+  // 显示分红数据
+  if (event.divData) {
+    const div = event.divData;
+    const cash = parseFloat(div.cash || 0);
+    const bonus = parseFloat(div.bonus || 0);
+    const transfer = parseFloat(div.transfer || 0);
+    
+    if (cash > 0) {
+      if (priceBefore) {
+        const yieldRate = (cash / priceBefore * 100).toFixed(2);
+        rows.push({ label: '现金分红', val: `${cash.toFixed(3)}元/股 (${yieldRate}%)` });
+      } else {
+        rows.push({ label: '现金分红', val: `${cash.toFixed(3)}元/股` });
+      }
+    }
+    if (bonus > 0) rows.push({ label: '送股', val: `${bonus.toFixed(2)}股/股` });
+    if (transfer > 0) rows.push({ label: '转增', val: `${transfer.toFixed(2)}股/股` });
+  }
+  
+  // 显示配股数据
+  if (event.allotData) {
+    const allot = event.allotData;
+    const ratio = parseFloat(allot.ratio || 0);
+    const price = parseFloat(allot.price || 0);
+    
+    rows.push({ label: '配股比例', val: `10配${(ratio * 10).toFixed(0)}股` });
+    rows.push({ label: '配股价', val: `¥${price.toFixed(2)}` });
+    if (allot.pay_end) {
+      rows.push({ label: '缴款截止', val: allot.pay_end });
+    }
+  }
+  
+  // 添加除权前收盘价（不复权）
+  if (priceBefore) {
+    rows.push({ label: '除权前收盘价', val: `¥${priceBefore.toFixed(2)}` });
+  }
+  if (priceAfter && priceBefore) {
+    const change = ((priceAfter - priceBefore) / priceBefore * 100).toFixed(2);
+    const sign = change >= 0 ? '+' : '';
+    rows.push({ label: '除权后开盘价', val: `¥${priceAfter.toFixed(2)} (${sign}${change}%)` });
+  }
+  
+  document.getElementById('dtt-date').textContent = dateStr;
+  document.getElementById('dtt-rows').innerHTML = rows.map(r =>
+    `<div class="dt-row"><span class="dt-label">${r.label}</span><span class="dt-val">${r.val}</span></div>`
+  ).join('');
+  
+  tt.style.display = 'block';
+  moveDivTooltip(e);
+}
+
+// 配股tooltip显示
+function showAllotmentTooltip(e, allot, dateStr) {
+  const tt = document.getElementById('divTooltip');
+  document.getElementById('dtt-date').textContent = dateStr + ' · 配股除权';
+
+  const ratio = parseFloat(allot.ratio || 0);
+  const price = parseFloat(allot.price || 0);
+  const ratio10 = (ratio * 10).toFixed(2);
+
+  const rows = [];
+  rows.push({ label: '配股比例', val: `10配${ratio10}股` });
+  rows.push({ label: '配股价', val: `¥${price.toFixed(2)}` });
+  if (allot.pay_start && allot.pay_end) {
+    rows.push({ label: '缴款期', val: `${allot.pay_start} 至 ${allot.pay_end}` });
+  }
+
+  // 除权前后真实价格对比（不复权）
+  const dateIdx = klineData.dates.indexOf(dateStr);
+  let priceBefore = null, priceAfter = null;
+  if (dateIdx > 0) {
+    priceBefore = klineData.closes[dateIdx - 1];
+    priceAfter = klineData.closes[dateIdx];
+  }
+  if (priceBefore) {
+    rows.push({ label: '除权前收盘价', val: `¥${priceBefore.toFixed(2)}` });
+  }
+  if (priceAfter && priceBefore) {
+    const change = ((priceAfter - priceBefore) / priceBefore * 100).toFixed(2);
+    const sign = change >= 0 ? '+' : '';
+    rows.push({ label: '除权后开盘价', val: `¥${priceAfter.toFixed(2)} (${sign}${change}%)` });
+  }
+
+  document.getElementById('dtt-rows').innerHTML = rows.map(r =>
+    `<div class="dtt-row"><span class="dtt-label">${r.label}</span><span class="dtt-val">${r.val}</span></div>`
+  ).join('');
+
+  tt.style.display = 'block';
+  moveDivTooltip(e);
+}
+
+// ========================================================
+// 计算收益
+// ========================================================
+function calculate() {
+  const buyDate   = document.getElementById('buyDate').value;
+  const sellDate  = document.getElementById('sellDate').value;
+  const buyAmount = parseFloat(document.getElementById('buyAmount').value);
+  const commRate  = parseFloat(document.getElementById('commRate').value) / 100;
+  const errBox    = document.getElementById('calcErr');
+  errBox.innerHTML = '';
+
+  if (!buyDate || !sellDate || !buyAmount) {
+    errBox.innerHTML = '<div class="err-box">请填写买入日期、卖出日期和买入金额</div>'; return;
+  }
+  if (buyDate >= sellDate) {
+    errBox.innerHTML = '<div class="err-box">卖出日期必须晚于买入日期</div>'; return;
+  }
+
+  // 查价格（日历中最近一个有数据的日期）
+  const buyIdx  = findDateIdx(buyDate);
+  const sellIdx = findDateIdx(sellDate);
+  if (buyIdx < 0)  { errBox.innerHTML = '<div class="err-box">买入日期无交易数据，请选择交易日</div>'; return; }
+  if (sellIdx < 0) { errBox.innerHTML = '<div class="err-box">卖出日期无交易数据，请选择交易日</div>'; return; }
+
+  const actualBuyDate  = klineData.dates[buyIdx];
+  const actualSellDate = klineData.dates[sellIdx];
+  const buyPrice  = klineData.closes[buyIdx];
+  const sellPrice = klineData.closes[sellIdx];
+
+  // 初始持仓（整手 = 100股）
+  let shares     = Math.floor(buyAmount / buyPrice / 100) * 100;
+  const buyCost  = shares * buyPrice;
+  const buyComm  = Math.max(buyCost * commRate, 5);
+  const totalIn  = buyCost + buyComm;
+
+  if (shares <= 0) {
+    errBox.innerHTML = '<div class="err-box">买入金额不足以购买100股，请增大金额</div>'; return;
+  }
+
+  // 处理分红送转
+  let cashIncome = 0;
+  const divDetails = [];
+
+  dividendData.forEach(div => {
+    const d = div.date || div.ex_date || '';
+    if (!d) return;
+    const dd = d.slice(0, 10);
+    if (dd <= actualBuyDate || dd > actualSellDate) return;
+
+    // 现金分红（每10股派X元 → 每股 = X/10）
+    const cashPerShare   = parseFloat(div.cash   || 0);  // API已返回每股值
+    const bonusPerShare  = parseFloat(div.bonus  || 0);
+    const transPerShare  = parseFloat(div.transfer || 0);
+    const rightsPerShare = parseFloat(div.rights || 0);
+
+    const cash    = shares * cashPerShare;
+    const added   = Math.floor(shares * bonusPerShare) + Math.floor(shares * transPerShare);
+    const oldSh   = shares;
+    cashIncome   += cash;
+    shares       += added;
+
+    // 获取分红日前后股价
+    const dateIdx = klineData.dates.indexOf(dd);
+    let priceBefore = null, priceAfter = null, divYield = null;
+    if (dateIdx > 0) {
+      priceBefore = klineData.closes[dateIdx - 1];
+      priceAfter = klineData.closes[dateIdx];
+      if (cashPerShare > 0 && priceBefore > 0) {
+        divYield = (cashPerShare / priceBefore * 100).toFixed(2);
+      }
+    }
+
+    divDetails.push({ 
+      date: dd, cash, cashPerShare, bonusPerShare, transPerShare, rightsPerShare,
+      oldShares: oldSh, newShares: shares, added,
+      priceBefore, priceAfter, divYield
+    });
+  });
+
+  // 处理配股（默认参加配股）
+  let allotmentCost = 0;  // 配股认购总成本
+  const allotmentDetails = [];
+  
+  if (allotmentData && allotmentData.length > 0) {
+    allotmentData.forEach(allot => {
+      const d = allot.date || allot.ex_date || '';
+      if (!d) return;
+      const dd = d.slice(0, 10);
+      if (dd <= actualBuyDate || dd > actualSellDate) return;
+
+      const ratio = parseFloat(allot.ratio || 0);      // 每股配股数
+      const price = parseFloat(allot.price || 0);      // 配股价
+      
+      if (ratio <= 0 || price <= 0) return;
+
+      // 获取股权登记日收盘价（配股前一天或当天）
+      const regDateIdx = klineData.dates.indexOf(dd);
+      let priceBefore = 0;
+      if (regDateIdx >= 0) {
+        priceBefore = klineData.closes[regDateIdx];
+      } else {
+        // 如果找不到精确日期，找最近的交易日
+        for (let i = klineData.dates.length - 1; i >= 0; i--) {
+          if (klineData.dates[i] <= dd) {
+            priceBefore = klineData.closes[i];
+            break;
+          }
+        }
+      }
+      
+      // 计算除权参考价
+      const exRightPrice = priceBefore > 0 
+        ? (priceBefore + ratio * price) / (1 + ratio)
+        : 0;
+
+      const oldShares = shares;
+      const newSharesFromAllot = Math.floor(shares * ratio);
+      const cost = newSharesFromAllot * price;  // 认购成本
+      
+      shares += newSharesFromAllot;
+      allotmentCost += cost;
+
+      allotmentDetails.push({
+        date: dd,
+        oldShares: oldShares,
+        newShares: newSharesFromAllot,
+        ratio: ratio,
+        price: price,
+        cost: cost,
+        totalShares: shares,
+        priceBefore: priceBefore,
+        priceAfter: exRightPrice,
+        payStart: allot.pay_start || '',
+        payEnd: allot.pay_end || ''
+      });
+    });
+  }
+
+  // 计算送股所得税（卖出时扣除）
+  // 规则：送股按面值1元/股计算，持股1年以上免税，1月-1年10%，1月内20%
+  // 简化处理：统一按10%计算（假设持股1月-1年）
+  let bonusTax = 0;
+  dividendData.forEach(div => {
+    const d = div.date || div.ex_date || '';
+    if (!d) return;
+    const dd = d.slice(0, 10);
+    if (dd <= actualBuyDate || dd > actualSellDate) return;
+    
+    const bonusPerShare = parseFloat(div.bonus || 0);
+    if (bonusPerShare > 0) {
+      // 送股数量 × 面值1元 × 10%
+      const bonusShares = Math.floor(shares * bonusPerShare);
+      bonusTax += bonusShares * 1.0 * 0.10;
+    }
+  });
+
+  // 卖出（默认全卖，后续可改为用户选择）
+  const sellShares = shares;  // 可卖股数
+  const sellAmt  = sellShares * sellPrice;
+  const sellComm = Math.max(sellAmt * commRate, 5);
+  const stampTax = sellAmt * 0.001;
+  const transfer = sellShares * sellPrice * 0.00002;
+  const totalFee = buyComm + sellComm + stampTax + transfer + bonusTax;
+  const netSell  = sellAmt - sellComm - stampTax - transfer - bonusTax;
+
+  // 总投入 = 买入成本 + 买入佣金 + 配股认购成本
+  const totalInvestment = buyCost + buyComm + allotmentCost;
+  
+  const stockProfit = netSell - buyCost - buyComm - allotmentCost;  // 纯股价+送转+配股收益
+  const totalProfit = stockProfit + cashIncome;
+  const totalRate   = totalInvestment > 0 ? (totalProfit / totalInvestment * 100) : 0;
+  const days        = (new Date(actualSellDate) - new Date(actualBuyDate)) / 86400000;
+  const years       = days / 365.25;
+  const annRate     = years > 0 ? ((Math.pow(1 + totalRate / 100, 1 / years) - 1) * 100) : 0;
+
+  // 渲染图表标记
+  renderChart(
+    { date: actualBuyDate,  price: buyPrice },
+    { date: actualSellDate, price: sellPrice }
+  );
+
+  // ===== 填充结果 =====
+  const pos = totalProfit >= 0;
+
+  // 核心指标
+  setMVal('r-total-profit', fmtMoney(totalProfit), pos ? 'green' : 'red');
+  setMVal('r-total-rate',   `${totalRate >= 0 ? '+' : ''}${totalRate.toFixed(2)}%`, pos ? 'green' : 'red');
+  setMVal('r-annual',       `${annRate >= 0 ? '+' : ''}${annRate.toFixed(2)}%`, pos ? 'green' : 'red');
+  setText('r-days', `${days} 天`);
+
+  // 收益构成条形（相对 totalIn）
+  const stockPct   = Math.max(0, stockProfit  / totalIn * 100);
+  const divPct     = Math.max(0, cashIncome   / totalIn * 100);
+  const costPct    = Math.min(totalFee / totalIn * 100, 100);
+  const total3     = stockPct + divPct + costPct || 1;
+  document.getElementById('barStock').style.width    = `${stockPct / total3 * 100}%`;
+  document.getElementById('barDividend').style.width = `${divPct   / total3 * 100}%`;
+  document.getElementById('barCost').style.width     = `${costPct  / total3 * 100}%`;
+
+  // 买入
+  setText('r-buy-date',   actualBuyDate);
+  setText('r-buy-price',  `${buyPrice.toFixed(2)} 元`);
+  setText('r-buy-shares', `${shares} 股（${shares/100}手）`);
+  setText('r-buy-cost',   fmtMoney(buyCost));
+  setText('r-buy-comm',   `-${fmtMoney(buyComm)}`);
+
+  // 分红送转列表（增强版）
+  const divList = document.getElementById('dividendList');
+  if (divDetails.length === 0) {
+    divList.innerHTML = '<div class="empty-div">持仓期间无分红送转记录</div>';
+  } else {
+    divList.innerHTML = divDetails.map(d => {
+      const tags = [];
+      if (d.cashPerShare > 0) {
+        const yieldInfo = d.divYield ? ` (${d.divYield}%)` : '';
+        tags.push(`<span class="tag cash">现金 ${d.cashPerShare.toFixed(3)}元${yieldInfo}</span>`);
+      }
+      if (d.bonusPerShare > 0) tags.push(`<span class="tag bonus">送 ${d.bonusPerShare.toFixed(2)}股/股</span>`);
+      if (d.transPerShare > 0) tags.push(`<span class="tag transfer">转 ${d.transPerShare.toFixed(2)}股/股</span>`);
+      if (d.rightsPerShare > 0) tags.push(`<span class="tag rights">配 ${d.rightsPerShare.toFixed(2)}股/股</span>`);
+
+      // 股价变化信息
+      let priceInfo = '';
+      if (d.priceBefore && d.priceAfter) {
+        const change = ((d.priceAfter - d.priceBefore) / d.priceBefore * 100).toFixed(2);
+        priceInfo = `<div style="font-size:11px;color:#8b949e;margin-top:4px">股价: ¥${d.priceBefore.toFixed(2)} → ¥${d.priceAfter.toFixed(2)} (${change}%)</div>`;
+      }
+
+      return `<div class="div-item">
+        <div class="div-date">📅 ${d.date} · ${d.oldShares}股→${d.newShares}股</div>
+        <div class="div-tags">${tags.join('')}</div>
+        ${priceInfo}
+        <div style="font-size:11px;color:#f85149;margin-top:4px">获得现金: +${fmtMoney(d.cash)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // 分红统计
+  const divCount = divDetails.length;
+  const divStatsEl = document.getElementById('divStats');
+  if (divCount > 0) {
+    const years = days / 365.25;
+    const divPerYear = years > 0 ? (divCount / years).toFixed(1) : 0;
+    const totalCashYield = buyCost > 0 ? (cashIncome / buyCost * 100).toFixed(2) : 0;
+    const annualCashYield = years > 0 && buyCost > 0 ? (cashIncome / buyCost / years * 100).toFixed(2) : 0;
+
+    setText('r-div-count', `${divCount} 次`);
+    setText('r-div-per-year', `${divPerYear} 次/年`);
+    setText('r-div-yield', `${totalCashYield}%`);
+    setText('r-div-annual-yield', `${annualCashYield}%`);
+    divStatsEl.style.display = 'block';
+  } else {
+    divStatsEl.style.display = 'none';
+  }
+
+  setText('r-div-total',    divDetails.length > 0 ? `+${fmtMoney(cashIncome)}` : '¥0.00');
+
+  // 配股列表渲染
+  const allotmentSection = document.getElementById('allotmentSection');
+  const allotmentList = document.getElementById('allotmentList');
+  if (allotmentDetails.length > 0) {
+    allotmentList.innerHTML = allotmentDetails.map(a => {
+      const ratio10 = (a.ratio * 10).toFixed(2);  // 转换为10配X
+      
+      // 计算除权参考价
+      const priceBefore = a.priceBefore || 0;  // 股权登记日收盘价
+      const priceAfter = a.priceAfter || 0;    // 除权后参考价
+      const exRightPrice = priceBefore > 0 && a.ratio > 0 && a.price > 0 
+        ? (priceBefore + a.ratio * a.price) / (1 + a.ratio)
+        : 0;
+      
+      // 计算不参加配股的损失
+      const lossIfSkip = priceBefore > 0 && exRightPrice > 0
+        ? a.oldShares * (priceBefore - exRightPrice)
+        : 0;
+      
+      return `<div class="div-item" style="border-left:3px solid #bc8cff;">
+        <div class="div-date">📅 ${a.date} · 10配${ratio10}股</div>
+        <div class="div-tags">
+          <span class="tag rights">配股价 ¥${a.price.toFixed(2)}</span>
+          <span class="tag cash">认购 ${a.newShares}股</span>
+          <span class="tag bonus">缴款期: ${a.payStart || '?'} 至 ${a.payEnd || '?'}</span>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px">📊 除权计算</div>
+          <div style="font-size:12px;color:#c9d1d9;display:flex;flex-wrap:wrap;gap:12px;">
+            <span>登记日股价: <b style="color:#58a6ff">¥${priceBefore.toFixed(2)}</b></span>
+            <span>→</span>
+            <span>除权参考价: <b style="color:#f85149">¥${exRightPrice.toFixed(2)}</b></span>
+            <span style="color:#8b949e">(跌幅 ${((1-exRightPrice/priceBefore)*100).toFixed(1)}%)</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px">💡 如果不参加配股</div>
+          <div style="font-size:12px;color:#f85149;">你将损失约 <b>${fmtMoney(lossIfSkip)}</b> (股价下跌未获补偿)</div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px">📈 持仓变化</div>
+          <div style="font-size:12px;color:#c9d1d9;">${a.oldShares}股 → <b>${a.totalShares}股</b> (新增${a.newShares}股)</div>
+        </div>
+        <div style="font-size:12px;color:#f85149;margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+          <b>认购成本: -${fmtMoney(a.cost)}</b>
+        </div>
+      </div>`;
+    }).join('');
+    setText('r-allotment-cost', `-${fmtMoney(allotmentCost)}`);
+    allotmentSection.style.display = 'block';
+  } else {
+    allotmentSection.style.display = 'none';
+  }
+
+  setText('r-final-shares', `${shares} 股`);
+
+  // 卖出
+  setText('r-sell-date',   actualSellDate);
+  setText('r-sell-price',  `${sellPrice.toFixed(2)} 元`);
+  setText('r-sell-amount', fmtMoney(sellAmt));
+  setText('r-sell-fee',    `-${fmtMoney(sellComm + stampTax + transfer)}`);
+  
+  // 送股所得税显示
+  const bonusTaxRow = document.getElementById('r-bonus-tax-row');
+  if (bonusTax > 0) {
+    setText('r-bonus-tax', `-${fmtMoney(bonusTax)}`);
+    bonusTaxRow.style.display = 'flex';
+  } else {
+    bonusTaxRow.style.display = 'none';
+  }
+  
+  setText('r-net-sell',    fmtMoney(netSell));
+
+  // 汇总
+  const spEl = document.getElementById('r-stock-profit');
+  spEl.textContent = (stockProfit >= 0 ? '+' : '') + fmtMoney(stockProfit);
+  spEl.className = 'detail-val ' + (stockProfit >= 0 ? 'pos' : 'neg');
+
+  setText('r-div-income',  `+${fmtMoney(cashIncome)}`);
+  setText('r-total-fee',   `-${fmtMoney(totalFee)}`);
+
+  const npEl = document.getElementById('r-net-profit');
+  npEl.textContent = (totalProfit >= 0 ? '+' : '') + fmtMoney(totalProfit);
+  npEl.style.color = totalProfit >= 0 ? '#f85149' : '#3fb950';  // 中国习惯：盈利红色，亏损绿色
+
+  document.getElementById('resultPanel').classList.add('show');
+  document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ========================================================
+// 工具函数
+// ========================================================
+function findDateIdx(dateStr) {
+  // 精确匹配，找不到往前找最近交易日
+  let idx = klineData.dates.indexOf(dateStr);
+  if (idx >= 0) return idx;
+  // 找最近的前一交易日
+  for (let i = klineData.dates.length - 1; i >= 0; i--) {
+    if (klineData.dates[i] <= dateStr) return i;
+  }
+  return -1;
+}
+
+function fmtMoney(v) {
+  const abs = Math.abs(v);
+  if (abs >= 1e8) return `¥${(v / 1e8).toFixed(2)}亿`;
+  if (abs >= 1e4) return `¥${(v / 1e4).toFixed(2)}万`;
+  return `¥${v.toFixed(2)}`;
+}
+
+function setText(id, v) {
+  document.getElementById(id).textContent = v;
+}
+
+function setMVal(id, v, cls) {
+  const el = document.getElementById(id);
+  el.textContent = v;
+  el.className = 'metric-value ' + (cls || '');
+}
+</script>
+</body>
+</html>

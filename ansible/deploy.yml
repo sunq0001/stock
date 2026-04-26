@@ -1,0 +1,70 @@
+---
+# SSE PE数据服务 - 生产环境部署剧本
+
+- name: 部署SSE PE数据服务到服务器
+  hosts: sse-server
+  gather_facts: yes
+  vars:
+    project_dir: /var/www/stock
+    compose_file: docker-compose.production.yml
+
+  tasks:
+    # 1. 同步代码到服务器（排除本地文件）
+    - name: 同步代码到服务器
+      synchronize:
+        src: ./
+        dest: "{{ project_dir }}"
+        delete: yes
+        exclude:
+          - ".git/"
+          - "__pycache__/"
+          - "*.pyc"
+          - "venv/"
+          - ".venv/"
+          - "*.log"
+          - ".DS_Store"
+          - "ansible/"
+          - "docker-compose.yml"  # 不覆盖本地用的配置
+          - "*.local.*"
+          - "cache/"
+
+    # 2. 停止旧容器
+    - name: 停止旧容器
+      shell: |
+        cd {{ project_dir }}
+        docker-compose -f {{ compose_file }} down 2>/dev/null || true
+      become: yes
+
+    # 3. 重新构建并启动
+    - name: 构建并启动服务
+      shell: |
+        cd {{ project_dir }}
+        docker-compose -f {{ compose_file }} up -d --build
+      become: yes
+
+    # 4. 等待服务就绪
+    - name: 等待服务启动
+      wait_for:
+        host: "127.0.0.1"
+        port: 8080
+        delay: 10
+        timeout: 60
+
+    # 5. 检查健康状态
+    - name: 检查服务健康
+      uri:
+        url: "http://127.0.0.1:8080/api/health"
+        method: GET
+      register: health_result
+      until: health_result.status == 200
+      retries: 5
+      delay: 5
+      ignore_errors: yes
+
+    # 6. 显示结果
+    - name: 显示部署结果
+      debug:
+        msg: |
+          部署完成！
+          前端地址: http://101.43.3.247:8080/
+          API地址: http://101.43.3.247:8082/api/market/pe

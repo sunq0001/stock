@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 服务器生产环境（使用本地数据库）
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "5000:5000"
+    environment:
+      - DATA_SOURCE=local_db
+      - LOCAL_DB_PATH=/app/sse_pe_data.db
+      - PORT=5000
+    volumes:
+      - ./html:/app/html
+      - ./sse_pe_data.db:/app/sse_pe_data.db
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./html:/usr/share/nginx/html
+    depends_on:
+      - web
+    restart: unless-stopped

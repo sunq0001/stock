@@ -1,0 +1,6 @@
+[sse-server]
+101.43.3.247 ansible_user=root ansible_password=Sandisk88! ansible_python_interpreter=/usr/bin/python3
+
+[sse-server:vars]
+project_dir=/var/www/stock
+app_port=8082
