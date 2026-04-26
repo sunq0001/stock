@@ -1,0 +1,20 @@
+---
+- name: Deploy extended service files
+  hosts: sse-server
+  become: yes
+  
+  tasks:
+    - name: Copy neodata_query.py
+      copy:
+        src: ../neodata_query.py
+        dest: /var/www/stock/neodata_query.py
+        mode: '0644'
+
+    - name: Copy pe_data_service_extended.py
+      copy:
+        src: ../pe_data_service_extended.py
+        dest: /var/www/stock/pe_data_service_extended.py
+        mode: '0644'
+
+    - name: Verify files
+      shell: ls -la /var/www/stock/*.py

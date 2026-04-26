@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 本地开发服务（使用测试数据库/远程API）
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "18082:5000"
+    environment:
+      - DATA_SOURCE=remote_api
+      - REMOTE_API_URL=http://101.43.3.247:8082/api/market/pe
+      - PORT=5000
+    volumes:
+      - ./html:/app/html
+    command: python pe_data_service.py
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "18080:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./html:/usr/share/nginx/html
+    depends_on:
+      - web
+    restart: unless-stopped

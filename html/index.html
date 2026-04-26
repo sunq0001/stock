@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上证大盘市盈率历史走势（1990-2026）</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    padding: 18px 40px 14px;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-bottom: 1px solid #21262d;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff, #79c0ff, #a5d6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: #8b949e;
+  }
+  .header .subtitle span {
+    color: #58a6ff;
+    font-weight: 600;
+  }
+  /* 股票搜索框 */
+  .stock-search-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 380px;
+  }
+  .stock-search-wrap input {
+    width: 100%;
+    padding: 9px 14px 9px 36px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #c9d1d9;
+    font-size: 13px;
+    transition: border-color .2s;
+  }
+  .stock-search-wrap input:focus { outline: none; border-color: #58a6ff; }
+  .stock-search-wrap input::placeholder { color: #484f58; }
+  .search-icon-pe {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6e7681;
+    pointer-events: none;
+  }
+  .stock-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    display: none;
+    z-index: 999;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  }
+  .stock-dropdown.show { display: block; }
+  .sdrop-item {
+    padding: 11px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background .15s;
+  }
+  .sdrop-item:last-child { border-bottom: none; }
+  .sdrop-item:hover { background: #21262d; }
+  .sdrop-code { color: #58a6ff; font-weight: 600; font-size: 14px; }
+  .sdrop-name { color: #8b949e; font-size: 13px; }
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    padding: 16px 40px;
+    background: #161b22;
+    border-bottom: 1px solid #21262d;
+    flex-wrap: wrap;
+  }
+  .stat-item {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+    border-right: 1px solid #21262d;
+    text-align: center;
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-label {
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.current { color: #58a6ff; }
+  .stat-value.avg { color: #e3b341; }
+  .stat-value.high { color: #f85149; }
+  .stat-value.low { color: #3fb950; }
+  .stat-sub {
+    font-size: 11px;
+    color: #8b949e;
+    margin-top: 2px;
+  }
+  #gauge-chart {
+    height: 180px;
+    border-radius: 12px;
+    background: #161b22;
+    border: 1px solid #21262d;
+  }
+  .gauge-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px 0;
+  }
+  .gauge-title span {
+    font-size: 13px;
+    color: #8b949e;
+    font-weight: 600;
+  }
+  .gauge-pe-display {
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-container {
+    flex: 1;
+    padding: 20px 20px 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .footer {
+    text-align: center;
+    padding: 12px;
+    font-size: 12px;
+    color: #484f58;
+    border-top: 1px solid #21262d;
+  }
+  .footer a { color: #58a6ff; text-decoration: none; }
+  .zone-labels {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px 40px;
+    background: #0d1117;
+    flex-wrap: wrap;
+  }
+  .zone-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .zone-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .note {
+    padding: 6px 40px;
+    background: #0d1117;
+    font-size: 11px;
+    color: #6e7681;
+    border-top: 1px solid #21262d;
+  }
+  .note strong { color: #8b949e; }
+  .drag-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 8px 40px;
+    background: #0d1117;
+    font-size: 11px;
+    color: #6e7681;
+  }
+  .drag-hint span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .drag-hint kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #8b949e;
+    font-family: inherit;
+  }
+  .pe-query {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 14px;
+    overflow: hidden;
+  }
+  .pe-query-title {
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .pe-query-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    background: #0d1117;
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .pe-query-tab {
+    flex: 1;
+    padding: 6px 0;
+    text-align: center;
+    font-size: 12px;
+    color: #8b949e;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+    border: none;
+    background: transparent;
+  }
+  .pe-query-tab.active {
+    background: #21262d;
+    color: #e6edf3;
+    font-weight: 600;
+  }
+  .pe-query-tab:hover:not(.active) {
+    color: #e6edf3;
+  }
+  .pe-query-panel {
+    display: none;
+  }
+  .pe-query-panel.active {
+    display: block;
+  }
+  .pe-query-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pe-query-input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #e6edf3;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .pe-query-input:focus {
+    border-color: #58a6ff;
+  }
+  .pe-query-input::placeholder {
+    color: #484f58;
+    font-weight: 400;
+    font-size: 12px;
+  }
+  .pe-query-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #8b949e;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .pe-query-btn:hover {
+    background: #30363d;
+    color: #e6edf3;
+    border-color: #58a6ff;
+  }
+  .pe-query-result {
+    margin-top: 10px;
+    padding: 10px;
+    background: #0d1117;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #8b949e;
+    line-height: 1.7;
+  }
+  .pe-query-result .result-hero {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .pe-query-result .big {
+    font-size: 20px;
+    font-weight: 700;
+    color: #e6edf3;
+  }
+  .pe-query-result .result-detail {
+    font-size: 11px;
+    color: #6e7681;
+    margin-bottom: 6px;
+  }
+  .pe-query-result .result-detail strong {
+    color: #8b949e;
+    font-weight: 600;
+  }
+  .pe-query-result .result-sep {
+    border: none;
+    border-top: 1px solid #21262d;
+    margin: 6px 0;
+  }
+  .pe-query-result .periods {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #6e7681;
+    line-height: 2;
+  }
+  .pe-query-result .period-tag {
+    display: inline-block;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 1px 7px;
+    margin: 2px 3px 2px 0;
+    font-size: 10px;
+    color: #58a6ff;
+    white-space: nowrap;
+  }
+  .pe-query-result .result-hint {
+    font-size: 11px;
+    color: #484f58;
+    text-align: center;
+    padding: 8px 0;
+  }
+  .pe-query-clear {
+    display: block;
+    margin-top: 8px;
+    font-size: 10px;
+    color: #484f58;
+    cursor: pointer;
+    text-align: center;
+  }
+  .pe-query-clear:hover {
+    color: #8b949e;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>📈 上证大盘市盈率历史走势</h1>
+    <div class="stock-search-wrap">
+      <svg class="search-icon-pe" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="peStockSearch" placeholder="🔍 输入股票代码 / 名称，模拟炒股" autocomplete="off">
+      <div class="stock-dropdown" id="peDropdown"></div>
+    </div>
+  </div>
+  <div class="subtitle">
+    数据来源：<span>上交所统计年鉴 / 乐咕乐股 / AKShare</span> &nbsp;·&nbsp;
+    时间跨度：<span>1990年12月 — 2026年4月</span> &nbsp;·&nbsp;
+    口径：<span>上证A股平均市盈率</span>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-label">当前市盈率</div>
+    <div class="stat-value current">--</div>
+    <div class="stat-sub">--</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">当前百分位</div>
+    <div class="stat-value" style="color:#e3b341">--</div>
+    <div class="stat-sub">--</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">历史均值</div>
+    <div class="stat-value avg">--</div>
+    <div class="stat-sub">日度数据</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">历史最高</div>
+    <div class="stat-value high">--</div>
+    <div class="stat-sub">--</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">历史最低</div>
+    <div class="stat-value low">--</div>
+    <div class="stat-sub">--</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">数据点</div>
+    <div class="stat-value" style="color:#a371f7">--</div>
+    <div class="stat-sub">日度数据</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">数据跨度</div>
+    <div class="stat-value" style="color:#79c0ff">--</div>
+    <div class="stat-sub">--</div>
+  </div>
+</div>
+
+<div class="zone-labels">
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(248,81,73,0.6)"></div>极度高估（PE &gt; 50）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(227,179,65,0.6)"></div>高估区（PE 30-50）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(63,185,80,0.4)"></div>合理区（PE 15-30）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(88,166,255,0.4)"></div>低估区（PE &lt; 15）</div>
+  <div class="zone-item" style="border-left:1px solid #21262d;padding-left:20px;margin-left:4px" id="zoneLabelsPct">加载中...</div>
+</div>
+
+<div class="chart-container">
+  <div style="display:flex;gap:12px;align-items:stretch">
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <div id="main-chart" style="flex:1;min-height:520px;border-radius:12px;background:#161b22;border:1px solid #21262d;overflow:visible"></div>
+      <div id="mini-chart" style="height:100px;border-radius:8px;background:#161b22;border:1px solid #21262d"></div>
+    </div>
+    <div style="width:280px;display:flex;flex-direction:column;gap:8px">
+      <div id="gauge-chart" style="flex:1"></div>
+      <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px">
+        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">百分位参考值</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+          <div style="display:flex;justify-content:space-between"><span style="color:#58a6ff">P10</span><span style="color:#e6edf3;font-weight:600" id="refP10">-- <span style="color:#6e7681;font-weight:400;font-size:11px">极度低估</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#3fb950">P25</span><span style="color:#e6edf3;font-weight:600" id="refP25">-- <span style="color:#6e7681;font-weight:400;font-size:11px">低估</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#e3b341">P50</span><span style="color:#e6edf3;font-weight:600" id="refP50">-- <span style="color:#6e7681;font-weight:400;font-size:11px">中位数</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#f0883e">P75</span><span style="color:#e6edf3;font-weight:600" id="refP75">-- <span style="color:#6e7681;font-weight:400;font-size:11px">偏高</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#f85149">P90</span><span style="color:#e6edf3;font-weight:600" id="refP90">-- <span style="color:#6e7681;font-weight:400;font-size:11px">极度高估</span></span></div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #21262d;font-size:11px;color:#6e7681;line-height:1.6" id="currentPeDisplay">
+          加载中...
+        </div>
+      </div>
+      <div class="pe-query">
+        <div class="pe-query-title">🔍 智能查询</div>
+        <div class="pe-query-tabs">
+          <button class="pe-query-tab active" data-tab="pe2pct" onclick="switchQueryTab('pe2pct')">PE → 百分位</button>
+          <button class="pe-query-tab" data-tab="pct2pe" onclick="switchQueryTab('pct2pe')">百分位 → PE</button>
+        </div>
+        <!-- Tab 1: PE → 百分位 -->
+        <div class="pe-query-panel active" id="panel-pe2pct">
+          <div class="pe-query-row">
+            <input type="number" class="pe-query-input" id="pe-query-input" placeholder="PE值，如15" step="0.1" min="0" max="200">
+            <button class="pe-query-btn" onclick="doPeQuery()">查询</button>
+          </div>
+          <div class="pe-query-result" id="pe-query-result">
+            <span class="result-hint">输入PE值查看历史百分位</span>
+          </div>
+        </div>
+        <!-- Tab 2: 百分位 → PE -->
+        <div class="pe-query-panel" id="panel-pct2pe">
+          <div class="pe-query-row">
+            <input type="number" class="pe-query-input" id="pct-query-input" placeholder="百分位，如90" step="0.1" min="0" max="100">
+            <button class="pe-query-btn" onclick="doPctQuery()">反查</button>
+          </div>
+          <div class="pe-query-result" id="pct-query-result">
+            <span class="result-hint">输入百分位查看对应PE值</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drag-hint">
+  <span><kbd>🖱️ 拖拽</kbd> 平移图表</span>
+  <span><kbd>滚轮</kbd> 缩放图表</span>
+  <span><kbd>🔴 框选</kbd> 区域放大（右上角工具栏）</span>
+  <span><kbd>双击</kbd> 还原视图</span>
+  <span><kbd>底部滑块</kbd> 选择时间范围</span>
+</div>
+
+<div class="note">
+  <strong>注：</strong>数据为上证A股日度市盈率，1999年起由上交所每日公布。数据每日收盘后自动更新。
+</div>
+
+<div class="footer">
+  数据平台：<a href="https://akshare.akfamily.xyz" target="_blank">AKShare</a>（开源免费）&nbsp;·&nbsp;
+  数据来源：<a href="https://www.sse.com.cn" target="_blank">上海证券交易所</a> / 
+  <a href="https://legulegu.com/stockdata/shanghaiPE" target="_blank">乐咕乐股</a>&nbsp;·&nbsp;
+  仅供参考，不构成投资建议
+</div>
+
+<script>
+// 数据将从API动态获取
+let dates = [];
+let peValues = [];
+let indexValues = [];
+let allPeSorted = [];
+let peAvg = 0;
+let peP10 = 0, peP25 = 0, peP50 = 0, peP75 = 0, peP90 = 0;
+let currentPe = 0;
+let currentPct = 0;
+
+// 从API加载数据
+async function loadData() {
+  try {
+    const res = await fetch('/api/market/pe');
+    if (!res.ok) throw new Error('API请求失败');
+    const json = await res.json();
+    
+    if (json.error || !json.data) {
+      console.error('数据加载失败:', json.error);
+      return false;
+    }
+    
+    // 处理数据
+    dates = json.data.map(d => d.date);
+    peValues = json.data.map(d => d.pe);
+    
+    // 计算统计数据
+    allPeSorted = [...peValues].sort((a, b) => a - b);
+    peAvg = json.stats?.avg || (peValues.reduce((a, b) => a + b, 0) / peValues.length);
+    currentPe = json.stats?.current || peValues[peValues.length - 1];
+    
+    // 计算分位数
+    peP10 = allPeSorted[Math.floor(allPeSorted.length * 0.1)];
+    peP25 = allPeSorted[Math.floor(allPeSorted.length * 0.25)];
+    peP50 = allPeSorted[Math.floor(allPeSorted.length * 0.5)];
+    peP75 = allPeSorted[Math.floor(allPeSorted.length * 0.75)];
+    peP90 = allPeSorted[Math.floor(allPeSorted.length * 0.9)];
+    
+    // 计算当前百分位
+    currentPct = calcPercentile(currentPe);
+    
+    // 更新页面统计信息
+    updateStats(json);
+    
+    // 初始化图表
+    initCharts();
+    
+    return true;
+  } catch (e) {
+    console.error('加载数据失败:', e);
+    return false;
+  }
+}
+
+function updateStats(json) {
+  // 更新顶部统计栏
+  const stats = json.stats;
+  if (!stats) return;
+  
+  // 更新当前PE
+  document.querySelector('.stat-value.current').textContent = stats.current.toFixed(2) + 'x';
+  document.querySelector('.stat-item .stat-sub').textContent = dates[dates.length - 1];
+  
+  // 更新百分位
+  document.querySelectorAll('.stat-value')[1].textContent = stats.percentile.toFixed(1) + '%';
+  document.querySelectorAll('.stat-sub')[1].textContent = `击败历史${(100 - stats.percentile).toFixed(1)}%的时点`;
+  
+  // 更新均值
+  document.querySelector('.stat-value.avg').textContent = stats.avg.toFixed(2) + 'x';
+  
+  // 更新最高/最低
+  document.querySelector('.stat-value.high').textContent = stats.max.toFixed(2) + 'x';
+  document.querySelector('.stat-value.low').textContent = stats.min.toFixed(2) + 'x';
+  
+  // 更新数据点数
+  document.querySelectorAll('.stat-value')[5].textContent = stats.count;
+  
+  // 更新数据跨度
+  const startYear = dates[0].substring(0, 4);
+  const endYear = dates[dates.length - 1].substring(0, 4);
+  document.querySelectorAll('.stat-value')[6].textContent = (parseInt(endYear) - parseInt(startYear)) + '年';
+  document.querySelectorAll('.stat-sub')[6].textContent = `${startYear}-${endYear}`;
+  
+  // 更新右侧百分位参考
+  document.getElementById('refP10').textContent = peP10.toFixed(2) + 'x';
+  document.getElementById('refP25').textContent = peP25.toFixed(2) + 'x';
+  document.getElementById('refP50').textContent = peP50.toFixed(2) + 'x';
+  document.getElementById('refP75').textContent = peP75.toFixed(2) + 'x';
+  document.getElementById('refP90').textContent = peP90.toFixed(2) + 'x';
+  
+  // 更新底部说明
+  const belowPct = (100 - stats.percentile).toFixed(0);
+  document.getElementById('currentPeDisplay').innerHTML = `当前 <span style="color:#58a6ff;font-weight:700">${stats.current.toFixed(2)}x</span> 处于 <span style="color:#58a6ff;font-weight:700">P${Math.round(stats.percentile)}</span>，低于 <span style="color:#3fb950">${belowPct}%</span> 的历史时点`;
+  
+  // 更新zone-labels中的分位数
+  document.getElementById('zoneLabelsPct').innerHTML = `<span style="color:#58a6ff">P10=${peP10.toFixed(2)}x</span> · <span style="color:#3fb950">P25=${peP25.toFixed(2)}x</span> · <span style="color:#e3b341">P50=${peP50.toFixed(2)}x</span> · <span style="color:#f0883e">P75=${peP75.toFixed(2)}x</span> · <span style="color:#f85149">P90=${peP90.toFixed(2)}x</span>`;
+}
+
+// 百分位计算：val在历史所有数据中排多少%
+function calcPercentile(val) {
+  let below = 0;
+  for (let i = 0; i < allPeSorted.length; i++) {
+    if (allPeSorted[i] < val) below++;
+  }
+  return Math.round(below / allPeSorted.length * 1000) / 10;
+}
+
+// 百分位对应的颜色和文案
+function pctColor(pct) {
+  if (pct < 10) return { color: '#58a6ff', text: '极度低估' };
+  if (pct < 25) return { color: '#3fb950', text: '低估区间' };
+  if (pct < 50) return { color: '#56d364', text: '偏低区间' };
+  if (pct < 75) return { color: '#e3b341', text: '偏高区间' };
+  if (pct < 90) return { color: '#f0883e', text: '高估区间' };
+  return { color: '#f85149', text: '极度高估' };
+}
+
+// 主图
+let mainChart, miniChart, gaugeChart;
+
+function initCharts() {
+  mainChart = echarts.init(document.getElementById('main-chart'));
+  miniChart = echarts.init(document.getElementById('mini-chart'));
+  gaugeChart = echarts.init(document.getElementById('gauge-chart'));
+  
+  const mainOption = {
+  backgroundColor: 'transparent',
+  animation: true,
+  animationDuration: 1800,
+  animationEasing: 'cubicOut',
+  grid: [
+    { top: 60, left: 70, right: 60, bottom: 50, containLabel: false, id: 'main' },
+  ],
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#1c2128',
+    borderColor: '#30363d',
+    borderWidth: 1,
+    textStyle: { color: '#e6edf3', fontSize: 13 },
+    formatter: function(params) {
+      const date = params[0].axisValue;
+      const pe = params[0].data;
+      const idx = dates.indexOf(date);
+      const idx_val = idx >= 0 ? indexValues[idx] : '-';
+      let zone = '';
+      let zoneColor = '';
+      if (pe > 50) { zone = '极度高估'; zoneColor = '#f85149'; }
+      else if (pe > 30) { zone = '高估区间'; zoneColor = '#e3b341'; }
+      else if (pe > 15) { zone = '合理区间'; zoneColor = '#3fb950'; }
+      else { zone = '低估区间'; zoneColor = '#58a6ff'; }
+      const freqLabel = '（日度数据）';
+      const pct = calcPercentile(pe);
+      const pctInfo = pctColor(pct);
+      // 更新仪表盘
+      updateGauge(pct, pe);
+      return `<div style="padding:4px 0">
+        <div style="font-size:12px;color:#8b949e;margin-bottom:6px">${date} ${freqLabel}</div>
+        <div style="font-size:20px;font-weight:700;color:#e6edf3;margin-bottom:4px">${pe.toFixed(2)}x</div>
+        <div style="font-size:12px;color:${zoneColor};margin-bottom:4px">● ${zone}</div>
+        <div style="font-size:14px;font-weight:600;color:${pctInfo.color};margin-bottom:6px">📊 历史百分位：${pct}%（${pctInfo.text}）</div>
+        <div style="font-size:12px;color:#8b949e">上证指数：<span style="color:#e6edf3">${typeof idx_val === 'number' ? idx_val.toFixed(2) : idx_val}</span></div>
+        <div style="font-size:12px;color:#8b949e;margin-top:2px">均值偏离：<span style="color:${pe > peAvg ? '#f85149' : '#3fb950'}">${pe > peAvg ? '+' : ''}${(pe - peAvg).toFixed(2)}x</span></div>
+      </div>`;
+    }
+  },
+  axisPointer: {
+    link: [{ xAxisIndex: 'all' }],
+    lineStyle: { color: '#30363d', width: 1, type: 'dashed' }
+  },
+  xAxis: {
+    type: 'category',
+    data: dates,
+    axisLine: { lineStyle: { color: '#21262d' } },
+    axisLabel: {
+      color: '#8b949e',
+      fontSize: 11,
+      formatter: (val) => val.substring(0, 7),
+      interval: Math.floor(dates.length / 12)
+    },
+    splitLine: { show: false },
+    axisTick: { show: false },
+  },
+  yAxis: {
+    type: 'value',
+    name: '市盈率 (倍)',
+    nameTextStyle: { color: '#8b949e', fontSize: 12, padding: [0, 50, 0, 0] },
+    min: 0,
+    max: function(v) { return Math.ceil(v.max / 10) * 10 + 10; },
+    splitLine: { lineStyle: { color: '#21262d', type: 'dashed' } },
+    axisLabel: { color: '#8b949e', fontSize: 11, formatter: '{value}x' },
+    axisLine: { show: false },
+    axisTick: { show: false },
+  },
+  dataZoom: [
+    {
+      type: 'inside',
+      xAxisIndex: [0],
+      start: 0,
+      end: 100,
+      zoomOnMouseWheel: true,
+      moveOnMouseMove: true,
+      moveOnMouseWheel: false,
+    },
+  ],
+  toolbox: {
+    show: true,
+    right: 16,
+    top: 12,
+    iconStyle: { borderColor: '#8b949e' },
+    emphasis: { iconStyle: { borderColor: '#58a6ff' } },
+    feature: {
+      dataZoom: {
+        yAxisIndex: 'none',
+        title: { zoom: '区域缩放', back: '还原' },
+        iconStyle: { borderColor: '#8b949e' },
+        emphasis: { iconStyle: { borderColor: '#58a6ff' } },
+      },
+      restore: { title: '重置' },
+    }
+  },
+  series: [
+    {
+      id: 'pe-line',
+      name: '市盈率',
+      type: 'line',
+      data: peValues,
+      smooth: 0.3,
+      symbol: 'none',
+      lineStyle: {
+        width: 2.5,
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#58a6ff' },
+          { offset: 0.15, color: '#f85149' },
+          { offset: 0.3, color: '#3fb950' },
+          { offset: 0.5, color: '#e3b341' },
+          { offset: 0.7, color: '#f85149' },
+          { offset: 0.85, color: '#3fb950' },
+          { offset: 1, color: '#58a6ff' },
+        ])
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(88,166,255,0.2)' },
+          { offset: 0.5, color: 'rgba(88,166,255,0.05)' },
+          { offset: 1, color: 'rgba(88,166,255,0)' },
+        ])
+      },
+      markLine: {
+        silent: true,
+        animation: false,
+        symbol: 'none',
+        lineStyle: { type: 'dashed', width: 1 },
+        label: { fontSize: 11, padding: [0, 4] },
+        data: [
+          { yAxis: peP50, name: '中位数', lineStyle: { color: '#e3b341', width: 1.5, type: 'solid' }, label: { color: '#e3b341', formatter: `P50 ${peP50}x` } },
+          { yAxis: peAvg, name: '均值', lineStyle: { color: '#8b949e', width: 1, type: 'dotted' }, label: { color: '#8b949e', formatter: `均值 ${peAvg}x` } },
+          { yAxis: peP25, name: 'P25', lineStyle: { color: 'rgba(63,185,80,0.5)' }, label: { color: '#3fb950', formatter: 'P25 ' + peP25 + 'x' } },
+          { yAxis: peP75, name: 'P75', lineStyle: { color: 'rgba(240,136,62,0.5)' }, label: { color: '#f0883e', formatter: 'P75 ' + peP75 + 'x' } },
+          { yAxis: 50, name: '50x', lineStyle: { color: 'rgba(248,81,73,0.3)' }, label: { color: '#f85149', formatter: '50x' } },
+          { yAxis: 15, name: '15x', lineStyle: { color: 'rgba(88,166,255,0.3)' }, label: { color: '#58a6ff', formatter: '15x' } },
+        ]
+      },
+      markPoint: {
+        symbol: 'circle',
+        symbolSize: 8,
+        data: [
+          { type: 'max', name: '最高', itemStyle: { color: '#f85149' }, label: { color: '#f85149', fontSize: 11, formatter: (p) => `历史最高\n${p.value}x` } },
+          { type: 'min', name: '最低', itemStyle: { color: '#3fb950' }, label: { color: '#3fb950', fontSize: 11, formatter: (p) => `历史最低\n${p.value}x` } },
+        ]
+      },
+    }
+  ]
+};
+
+  mainChart.setOption(mainOption);
+
+// 缩略图（mini）
+const miniOption = {
+  backgroundColor: 'transparent',
+  grid: { top: 8, left: 50, right: 60, bottom: 20 },
+  tooltip: { show: false },
+  xAxis: {
+    type: 'category',
+    data: dates,
+    axisLabel: { color: '#484f58', fontSize: 10, formatter: v => v.substring(0, 4), interval: Math.floor(dates.length / 10) },
+    axisLine: { lineStyle: { color: '#21262d' } },
+    axisTick: { show: false },
+    splitLine: { show: false },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { show: false },
+    axisLine: { show: false },
+    splitLine: { show: false },
+    axisTick: { show: false },
+  },
+  dataZoom: [
+    {
+      type: 'slider',
+      xAxisIndex: [0],
+      start: 0,
+      end: 100,
+      height: 20,
+      bottom: 0,
+      borderColor: '#21262d',
+      backgroundColor: '#0d1117',
+      fillerColor: 'rgba(88,166,255,0.12)',
+      handleStyle: { color: '#58a6ff', borderColor: '#58a6ff' },
+      textStyle: { color: '#8b949e', fontSize: 10 },
+      dataBackground: {
+        lineStyle: { color: '#30363d' },
+        areaStyle: { color: 'rgba(88,166,255,0.1)' },
+      },
+      selectedDataBackground: {
+        lineStyle: { color: '#58a6ff' },
+        areaStyle: { color: 'rgba(88,166,255,0.2)' },
+      },
+    },
+    { type: 'inside', xAxisIndex: [0] },
+  ],
+  series: [{
+    type: 'line',
+    data: peValues,
+    smooth: 0.3,
+    symbol: 'none',
+    lineStyle: { width: 1, color: '#58a6ff' },
+    areaStyle: { color: 'rgba(88,166,255,0.1)' },
+    animation: false,
+  }]
+};
+
+  miniChart.setOption(miniOption);
+
+  // ===== 百分位仪表盘 =====
+  gaugeChart.setOption(gaugeOption(currentPct, currentPe));
+
+function gaugeOption(pct, pe) {
+  const info = pctColor(pct);
+  return {
+    backgroundColor: 'transparent',
+    series: [{
+      type: 'gauge',
+      center: ['50%', '55%'],
+      radius: '85%',
+      startAngle: 210,
+      endAngle: -30,
+      min: 0,
+      max: 100,
+      progress: {
+        show: true,
+        width: 18,
+        roundCap: true,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#58a6ff' },
+            { offset: 0.3, color: '#3fb950' },
+            { offset: 0.5, color: '#e3b341' },
+            { offset: 0.75, color: '#f0883e' },
+            { offset: 1, color: '#f85149' },
+          ])
+        }
+      },
+      axisLine: {
+        lineStyle: {
+          width: 18,
+          color: [[1, '#21262d']]
+        }
+      },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisLabel: { show: false },
+      pointer: { show: false },
+      anchor: { show: false },
+      title: { show: false },
+      detail: {
+        valueAnimation: true,
+        fontSize: 28,
+        fontWeight: 700,
+        fontFamily: 'inherit',
+        offsetCenter: [0, '10%'],
+        formatter: function(v) { return v + '%'; },
+        color: info.color,
+      },
+      data: [{ value: pct }]
+    }],
+    graphic: [{
+      type: 'group',
+      left: 'center',
+      bottom: '12%',
+      children: [
+        {
+          type: 'text',
+          style: {
+            text: pe.toFixed(1) + 'x',
+            fontSize: 16,
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            fill: '#e6edf3',
+            textAlign: 'center',
+          }
+        },
+        {
+          type: 'text',
+          style: {
+            text: info.text,
+            fontSize: 12,
+            fill: info.color,
+            textAlign: 'center',
+            y: 20,
+          }
+        },
+        {
+          type: 'text',
+          style: {
+            text: '历史百分位',
+            fontSize: 11,
+            fill: '#6e7681',
+            textAlign: 'center',
+            y: 38,
+          }
+        }
+      ]
+    }]
+  };
+}
+
+function updateGauge(pct, pe) {
+  gaugeChart.setOption(gaugeOption(pct, pe));
+}
+
+// 联动缩略图与主图（防循环）
+let syncing = false;
+function syncCharts(source, start, end) {
+  if (syncing) return;
+  syncing = true;
+  const target = source === miniChart ? mainChart : miniChart;
+  target.dispatchAction({
+    type: 'dataZoom',
+    start: start,
+    end: end
+  });
+  setTimeout(() => { syncing = false; }, 50);
+}
+
+miniChart.on('dataZoom', function(e) {
+  syncCharts(miniChart, e.start, e.end);
+});
+
+mainChart.on('dataZoom', function(e) {
+  syncCharts(mainChart, e.start, e.end);
+});
+
+// toolbox框选缩放时也联动
+mainChart.on('datazoom', function(e) {
+  if (e.batch) {
+    const batch = e.batch[0];
+    syncCharts(mainChart, batch.start, batch.end);
+  }
+});
+
+// 双击主图还原
+mainChart.getZr().on('dblclick', function() {
+  mainChart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+  miniChart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+});
+
+// 自适应
+window.addEventListener('resize', () => {
+  mainChart.resize();
+  miniChart.resize();
+  gaugeChart.resize();
+});
+
+  // 联动事件绑定
+  miniChart.on('dataZoom', function(e) {
+    syncCharts(miniChart, e.start, e.end);
+  });
+
+  mainChart.on('dataZoom', function(e) {
+    syncCharts(mainChart, e.start, e.end);
+  });
+
+  // toolbox框选缩放时也联动
+  mainChart.on('datazoom', function(e) {
+    if (e.batch) {
+      const batch = e.batch[0];
+      syncCharts(mainChart, batch.start, batch.end);
+    }
+  });
+
+  // 双击主图还原
+  mainChart.getZr().on('dblclick', function() {
+    mainChart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+    miniChart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+  });
+
+  // 自适应
+  window.addEventListener('resize', () => {
+    mainChart.resize();
+    miniChart.resize();
+    gaugeChart.resize();
+  });
+}
+
+// 联动缩略图与主图（防循环）
+let syncing = false;
+function syncCharts(source, start, end) {
+  if (syncing) return;
+  syncing = true;
+  const target = source === miniChart ? mainChart : miniChart;
+  target.dispatchAction({
+    type: 'dataZoom',
+    start: start,
+    end: end
+  });
+  setTimeout(() => { syncing = false; }, 50);
+}
+
+// ===== Tab切换 =====
+function switchQueryTab(tab) {
+  document.querySelectorAll('.pe-query-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.pe-query-tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.pe-query-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+// ===== PE百分位查询（PE → 百分位）=====
+// 记录低于threshold的数据索引和时段
+function findBelowThreshold(threshold) {
+  const belowIndices = [];
+  const periods = [];
+  let startIdx = -1;
+  for (let i = 0; i < peValues.length; i++) {
+    if (peValues[i] <= threshold) {
+      belowIndices.push(i);
+      if (startIdx === -1) startIdx = i;
+    } else {
+      if (startIdx !== -1) {
+        periods.push([startIdx, i - 1]);
+        startIdx = -1;
+      }
+    }
+  }
+  if (startIdx !== -1) periods.push([startIdx, peValues.length - 1]);
+  return { belowIndices, periods };
+}
+
+// 生成markArea数据（高亮低于阈值的区域）
+function buildMarkAreaData(threshold) {
+  const { periods } = findBelowThreshold(threshold);
+  return periods.map(([s, e]) => [
+    { xAxis: dates[s], itemStyle: { color: 'rgba(88,166,255,0.08)' } },
+    { xAxis: dates[e], itemStyle: { color: 'rgba(88,166,255,0.08)' } }
+  ]);
+}
+
+function doPeQuery() {
+  const input = document.getElementById('pe-query-input');
+  const result = document.getElementById('pe-query-result');
+  const val = parseFloat(input.value);
+
+  if (isNaN(val) || val < 0) {
+    result.innerHTML = '<span style="color:#f85149">请输入有效的PE值</span>';
+    clearQueryHighlight();
+    return;
+  }
+
+  const pct = calcPercentile(val);
+  const info = pctColor(pct);
+  const { belowIndices, periods } = findBelowThreshold(val);
+  const belowCount = belowIndices.length;
+  const belowPct = (belowCount / peValues.length * 100).toFixed(1);
+
+  let periodHTML = '';
+  if (periods.length > 0) {
+    periods.forEach(([s, e]) => {
+      const startStr = dates[s].substring(0, 7);
+      const endStr = dates[e].substring(0, 7);
+      if (s === e) {
+        periodHTML += `<span class="period-tag">${startStr}</span>`;
+      } else {
+        periodHTML += `<span class="period-tag">${startStr} ~ ${endStr}</span>`;
+      }
+    });
+  }
+
+  result.innerHTML = `
+    <div class="result-hero">
+      <span style="color:#8b949e">PE</span>
+      <span class="big">${val}</span>
+      <span style="color:#8b949e">x</span>
+      <span style="margin-left:auto;color:${info.color};font-weight:700;font-size:18px">${pct}%</span>
+    </div>
+    <div class="result-detail">
+      <span style="color:${info.color}">${info.text}</span> · 低于 ${100 - pct}% 的历史时点
+    </div>
+    <hr class="result-sep">
+    <div class="result-detail">
+      低于 <strong>${val}x</strong> 的时段共 <strong style="color:#58a6ff">${periods.length}</strong> 段（${belowCount} 个时点）
+    </div>
+    ${periods.length > 0 ? `<div class="periods">${periodHTML}</div>` : ''}
+    <div class="pe-query-clear" onclick="clearPeQuery()">清除高亮</div>
+  `;
+
+  updateGauge(pct, val);
+  applyQueryHighlight(val);
+}
+
+function clearPeQuery() {
+  document.getElementById('pe-query-input').value = '';
+  document.getElementById('pe-query-result').innerHTML = '<span class="result-hint">输入PE值查看历史百分位</span>';
+  clearQueryHighlight();
+}
+
+// ===== 百分位反查（百分位 → PE）=====
+function pctToPe(pctInput) {
+  // 支持小数百分位，插值查找
+  const pctFloor = Math.floor(pctInput);
+  const pctCeil = Math.ceil(pctInput);
+  if (pctFloor < 0) return pctToPeMap[0];
+  if (pctCeil > 100) return pctToPeMap[100];
+  if (pctFloor === pctCeil) return pctToPeMap[pctFloor];
+  const lo = pctToPeMap[pctFloor];
+  const hi = pctToPeMap[pctCeil];
+  const frac = pctInput - pctFloor;
+  return Math.round((lo + (hi - lo) * frac) * 100) / 100;
+}
+
+function doPctQuery() {
+  const input = document.getElementById('pct-query-input');
+  const result = document.getElementById('pct-query-result');
+  const val = parseFloat(input.value);
+
+  if (isNaN(val) || val < 0 || val > 100) {
+    result.innerHTML = '<span style="color:#f85149">请输入0-100之间的百分位</span>';
+    clearQueryHighlight();
+    return;
+  }
+
+  const pe = pctToPe(val);
+  const info = pctColor(val);
+  const { belowIndices, periods } = findBelowThreshold(pe);
+  const belowCount = belowIndices.length;
+  const belowPct = (belowCount / peValues.length * 100).toFixed(1);
+
+  let periodHTML = '';
+  if (periods.length > 0) {
+    periods.forEach(([s, e]) => {
+      const startStr = dates[s].substring(0, 7);
+      const endStr = dates[e].substring(0, 7);
+      if (s === e) {
+        periodHTML += `<span class="period-tag">${startStr}</span>`;
+      } else {
+        periodHTML += `<span class="period-tag">${startStr} ~ ${endStr}</span>`;
+      }
+    });
+  }
+
+  result.innerHTML = `
+    <div class="result-hero">
+      <span style="color:#8b949e">P</span>
+      <span class="big">${val}</span>
+      <span style="margin-left:16px;color:#8b949e">PE</span>
+      <span class="big">${pe}</span>
+      <span style="color:#8b949e">x</span>
+    </div>
+    <div class="result-detail">
+      <span style="color:${info.color}">${info.text}</span> · 历史PE ≤ ${pe}x
+    </div>
+    <hr class="result-sep">
+    <div class="result-detail">
+      低于 <strong>${pe}x</strong> 的时段共 <strong style="color:#58a6ff">${periods.length}</strong> 段（${belowCount} 个时点）
+    </div>
+    ${periods.length > 0 ? `<div class="periods">${periodHTML}</div>` : ''}
+    <div class="pe-query-clear" onclick="clearPctQuery()">清除高亮</div>
+  `;
+
+  updateGauge(val, pe);
+  applyQueryHighlight(pe);
+}
+
+function clearPctQuery() {
+  document.getElementById('pct-query-input').value = '';
+  document.getElementById('pct-query-result').innerHTML = '<span class="result-hint">输入百分位查看对应PE值</span>';
+  clearQueryHighlight();
+}
+
+function applyQueryHighlight(threshold) {
+  const markAreaData = buildMarkAreaData(threshold);
+  mainChart.setOption({
+    series: [{
+      id: 'pe-line',
+      markArea: {
+        silent: true,
+        data: markAreaData,
+        label: { show: false }
+      }
+    }]
+  });
+}
+
+function clearQueryHighlight() {
+  mainChart.setOption({
+    series: [{
+      id: 'pe-line',
+      markArea: { data: [] }
+    }]
+  });
+  updateGauge(currentPct, currentPe);
+}
+
+// 回车触发查询
+document.getElementById('pe-query-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doPeQuery();
+});
+document.getElementById('pct-query-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doPctQuery();
+});
+
+// ============================================================
+// 股票搜索入口（跳转到模拟炒股页面）
+// ============================================================
+(function() {
+  const API_BASE = '/api';
+  const input    = document.getElementById('peStockSearch');
+  const dropdown = document.getElementById('peDropdown');
+  let timer      = null;
+
+  if (!input) return;
+
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    if (!q) { dropdown.classList.remove('show'); return; }
+    timer = setTimeout(() => fetchSearch(q), 300);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      const q = this.value.trim();
+      if (/^\d{6}$/.test(q)) goToStock(q);
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.stock-search-wrap')) dropdown.classList.remove('show');
+  });
+
+  async function fetchSearch(q) {
+    try {
+      const res  = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
+      const list = await res.json();
+      if (!Array.isArray(list) || list.length === 0) {
+        dropdown.innerHTML = '<div class="sdrop-item"><span class="sdrop-name">未找到相关股票</span></div>';
+      } else {
+        dropdown.innerHTML = list.map(s =>
+          `<div class="sdrop-item" onclick="goToStock('${s.code}')">
+            <span class="sdrop-code">${s.code}</span>
+            <span class="sdrop-name">${s.name}</span>
+          </div>`
+        ).join('');
+      }
+      dropdown.classList.add('show');
+    } catch(e) {
+      dropdown.classList.remove('show');
+    }
+  }
+
+  window.goToStock = function(code) {
+    window.location.href = `/stock.html?code=${code}`;
+  };
+})();
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
