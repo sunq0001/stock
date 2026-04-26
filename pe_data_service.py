@@ -272,14 +272,18 @@ def get_stock_kline_before(code, before_date):
     返回: {"kline": [...], "earliest_date": "...", "all_loaded": bool}
     """
     extent = _kline_extent.get(code)
-    if not extent:
-        return {"kline": [], "earliest_date": before_date, "all_loaded": False}
+    # 即使 extent 不存在（如服务重启后），也继续尝试加载数据
+    # 不要直接返回空，否则前端会误判为"已加载全部历史"
 
     # 防止并发重复请求
-    if extent.get("loading"):
+    if extent and extent.get("loading"):
         return {"kline": [], "earliest_date": before_date, "all_loaded": False}
 
-    extent["loading"] = True
+    if extent:
+        extent["loading"] = True
+    else:
+        _kline_extent[code] = {"earliest_date": before_date, "loading": True, "all_loaded": False}
+        extent = _kline_extent[code]
     try:
         # 将 before_date 往前推约5年(1800天)去拉数据
         from datetime import timedelta
@@ -406,43 +410,59 @@ def get_dividend_data(code):
         return {"dividends": []}
 
 
-def get_allotment_data(code):
-    """获取配股数据（AKShare 巨潮资讯）"""
+def _get_allotment_data_subprocess(code):
+    """子进程执行配股查询，隔离 py_mini_racer 崩溃风险"""
+    import subprocess
+    import json
+    import sys
+    
+    script = f'''
+import sys
+sys.path.insert(0, r"C:\\Users\\mss\\WorkBuddy\\20260414224936\\stock-project-local")
+import json
+try:
+    import akshare as ak
+    df = ak.stock_allotment_cninfo(symbol="{code}")
+    if df is None or df.empty:
+        print(json.dumps({{"allotments": []}}))
+        sys.exit(0)
+    
+    import pandas as pd
+    allotments = []
+    for _, row in df.iterrows():
+        price = float(row.get('配股价格', 0) or 0) if pd.notna(row.get('配股价格')) else 0
+        ratio = float(row.get('配股比例', 0) or 0) if pd.notna(row.get('配股比例')) else 0
+        if price == 0 and ratio == 0:
+            continue
+        ex_date = str(row['除权基准日'])[:10] if pd.notna(row.get('除权基准日')) else ''
+        allotments.append({{
+            "date": str(row.get('上市公告日期', ''))[:10],
+            "ex_date": ex_date,
+            "price": price,
+            "ratio": ratio
+        }})
+    print(json.dumps({{"allotments": allotments}}))
+except Exception as e:
+    print(json.dumps({{"allotments": [], "error": str(e)}}))
+'''
     try:
-        import akshare as ak
-    except ImportError:
+        result = subprocess.run(
+            [sys.executable, '-c', script],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return json.loads(result.stdout.strip())
         return {"allotments": []}
-
-    try:
-        df = ak.stock_allotment_cninfo(symbol=code)
-        if df is None or df.empty:
-            return {"allotments": []}
-
-        allotments = []
-        for _, row in df.iterrows():
-            price = float(row.get('配股价格', 0) or 0) if pd.notna(row.get('配股价格')) else 0
-            ratio = float(row.get('配股比例', 0) or 0) if pd.notna(row.get('配股比例')) else 0
-
-            if price == 0 and ratio == 0:
-                continue
-
-            ex_date = ''
-            if pd.notna(row.get('除权基准日')):
-                ex_date = str(row['除权基准日'])[:10]
-
-            allotments.append({
-                "date": str(row.get('上市公告日期', ''))[:10],
-                "ex_date": ex_date,
-                "price": price,
-                "ratio": ratio
-            })
-
-        print(f'[INFO] 获取 {code} 配股数据成功，共 {len(allotments)} 条')
-        return {"allotments": allotments}
-
     except Exception as e:
-        print(f'[ERROR] get_allotment_data({code}): {e}')
+        print(f'[WARN] 配股查询子进程失败: {e}')
         return {"allotments": []}
+
+
+def get_allotment_data(code):
+    """获取配股数据（AKShare 巨潮资讯）- 使用子进程隔离"""
+    return _get_allotment_data_subprocess(code)
 
 # ========== 大盘PE数据函数 ==========
 
@@ -663,4 +683,4 @@ if __name__ == '__main__':
     print(f"远程API地址: {REMOTE_API_URL}")
     print(f"服务端口: {port}")
     
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -1008,7 +1008,10 @@ async function loadStock(code) {
 
 // ========== 按需增量加载历史数据（炒股软件式） ==========
 function onChartZoom() {
-  // 检查是否拖到了数据最左边界
+  // 渲染分红标签（必须始终执行，不受加载状态影响）
+  renderDividendMarkers();
+
+  // 检查是否拖到了数据最左边界，触发加载更早数据
   if (allLoaded || isLoadingHistory || !klineData || !chartInst) return;
 
   const opt = chartInst.getOption();
@@ -1020,8 +1023,6 @@ function onChartZoom() {
     loadEarlierData();
   }
 
-  // 渲染分红标签
-  renderDividendMarkers();
 }
 
 async function loadEarlierData() {
@@ -1422,7 +1423,7 @@ function showCombinedTooltip(e, event, dateStr) {
     const ratio = parseFloat(allot.ratio || 0);
     const price = parseFloat(allot.price || 0);
     
-    rows.push({ label: '配股比例', val: `10配${(ratio * 10).toFixed(0)}股` });
+    rows.push({ label: '配股比例', val: `10配${ratio.toFixed(1)}股` });
     rows.push({ label: '配股价', val: `¥${price.toFixed(2)}` });
     if (allot.pay_end) {
       rows.push({ label: '缴款截止', val: allot.pay_end });
