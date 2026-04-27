@@ -249,8 +249,14 @@ def _get_stock_name(code):
 
 
 
-def get_stock_kline(code, days=1200):
-    """获取股票K线数据（初始加载，返回最近N条）"""
+def get_stock_kline(code, days=None):
+    """获取股票K线数据（初始加载，默认一次性拉全量历史）
+    days: None=全量, 或指定天数(用于兼容)
+    """
+    if days is None:
+        # 一次性拉全量：从1990年至今
+        days = (datetime.now() - datetime(1990, 1, 1)).days + 30
+
     result = _fetch_kline_data(code, days)
     if result is None:
         return {"name": f"股票{code}", "kline": [], "earliest_date": None, "all_loaded": False}
@@ -259,11 +265,11 @@ def get_stock_kline(code, days=1200):
     stock_name = _get_stock_name(code)
     earliest = kline[0]["日期"] if kline else None
 
-    # 记录当前最早日期
-    _kline_extent[code] = {"earliest_date": earliest, "loading": False, "all_loaded": False}
+    # 记录当前最早日期，全量拉取后标记为全部加载完成
+    _kline_extent[code] = {"earliest_date": earliest, "loading": False, "all_loaded": True}
 
     print(f'[INFO] 获取 {code} K线数据成功，共 {len(kline)} 条 ({"腾讯源" if use_tx else "东方财富"})')
-    return {"name": stock_name, "kline": kline, "earliest_date": earliest, "all_loaded": False}
+    return {"name": stock_name, "kline": kline, "earliest_date": earliest, "all_loaded": True}
 
 
 def get_stock_kline_before(code, before_date):
