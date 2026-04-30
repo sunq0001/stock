@@ -2,7 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 上证交易所市场数据爬虫 - 完整历史数据版本
-数据来源: https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml
+
+数据来源:
+- 旧网站(历史API): 1999年 ~ 2021-12-24
+  https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml
+- 新网站(新版API): 2021-12-25 ~ 至今
+  https://www.sse.com.cn/market/stockdata/overview/day/
+
 支持: 1999年至今的完整历史数据
 """
 
@@ -53,7 +59,7 @@ def fetch_json(url):
 
 def fetch_market_data_by_new_api(date_str):
     """
-    使用新版API获取指定日期的数据 (2021-12-24至今)
+    使用新版API获取指定日期的数据 (2021-12-25至今，新网站)
     date_str: YYYY-MM-DD
     """
     ts = int(time.time() * 1000)
@@ -76,7 +82,7 @@ def fetch_market_data_by_new_api(date_str):
 
 def fetch_market_data_by_history_api(date_str):
     """
-    使用历史API获取指定日期的数据 (1999年至今)
+    使用历史API获取指定日期的数据 (1999年至2021-12-24，旧网站)
     date_str: YYYY-MM-DD
     """
     ts = int(time.time() * 1000)
@@ -148,7 +154,7 @@ def parse_new_api_data(raw_data):
         '02': {'name': '主板B', 'col_name': '主板B'},
         '03': {'name': '科创板', 'col_name': '科创板'},
         '11': {'name': '股票回购', 'col_name': '股票回购'},
-        '17': {'name': '全部', 'col_name': '全部'},
+        '17': {'name': '股票', 'col_name': '股票'},
     }
     
     market_data = {}
@@ -182,18 +188,22 @@ def get_market_data(date_str):
     获取指定日期的市场数据
     自动选择合适的API
     date_str: YYYY-MM-DD
+    
+    数据源分界:
+    - 旧网站(历史API): 1999 ~ 2021-12-24
+    - 新网站(新版API): 2021-12-25 ~ 至今
     """
     # 转换日期
     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-    cutoff_date = datetime(2021, 12, 24)
+    new_api_start = datetime(2021, 12, 25)  # 新网站启用日期
     
-    if date_obj >= cutoff_date:
-        # 使用新版API
+    if date_obj >= new_api_start:
+        # 使用新版API (2021-12-25起)
         raw_data = fetch_market_data_by_new_api(date_str)
         if raw_data:
             return parse_new_api_data(raw_data)
     
-    # 使用历史API（支持1999年至今）
+    # 使用历史API（支持1999年至2021-12-24）
     raw_data = fetch_market_data_by_history_api(date_str)
     if raw_data:
         return parse_history_data(raw_data, date_str)

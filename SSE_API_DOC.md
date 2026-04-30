@@ -5,8 +5,10 @@
 本文档记录上证交易所官网市场数据 API 的使用方法、数据范围、以及新旧网站的 API 差异。
 
 数据来源：
-- **新网站**（2021-12-27至今）：https://www.sse.com.cn/market/stockdata/overview/day/
-- **旧网站**（1999年至今）：https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml
+- **旧网站（历史API）**：1999年 ~ 2021-12-24
+  https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml
+- **新网站（新版API）**：2021-12-25 ~ 至今
+  https://www.sse.com.cn/market/stockdata/overview/day/
 
 ---
 
@@ -14,7 +16,7 @@
 
 ### 2.1 历史 API（旧网站）
 
-**适用日期**：1999年 ~ 2021-12-26
+**适用日期**：1999年 ~ 2021-12-24
 
 **端点地址**：
 ```
@@ -67,9 +69,9 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_DAYCJGK_C&
 
 ---
 
-### 2.2 新 API（新网站）
+### 2.2 新版 API（新网站）
 
-**适用日期**：2021-12-27 至今
+**适用日期**：2021-12-25 ~ 至今
 
 **端点地址**：
 ```
@@ -119,16 +121,26 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRO
 ## 三、数据时间范围
 
 ```
-1999-01-01 ─────────────────── 2021-12-24 ─────────────────── 2026-04-28
+1999-01-01 ─────────────────── 2021-12-24 ─────────────────── 2026-04-29
         │                              │                              │
-        └──── 历史API ──────────────────┘                              │
-                                      └──── 新API ────────────────────┘
+        └──── 历史API（旧网站） ────────┘                              │
+                                      └──── 新版API（新网站） ─────────┘
 ```
 
 | API | 适用日期 | 分类数量 | 特殊说明 |
 |-----|----------|----------|----------|
-| 历史API | 1999年 ~ 2021-12-26 | 6个分类 | 包含完整的所有字段 |
-| 新API | 2021-12-27 至今 | 5个分类 | 不包含TYPE=40/TYPE=12 |
+| 历史API | 1999年 ~ 2021-12-24 | 6个分类 | 包含完整的所有字段 |
+| 新版API | 2021-12-25 ~ 至今 | 5个分类 | 不包含TYPE=40/TYPE=12 |
+
+**产品类型代码对照表**：
+
+| 产品名称 | 历史API代码 | 新版API代码 |
+|----------|------------|------------|
+| 主板A股 | 1, 12, 40 | 01 |
+| 主板B股 | 2 | 02 |
+| 科创板 | 48 | 03 |
+| 股票回购 | 43 | 11 |
+| 全部股票 | 40 | 17 |
 
 ---
 
@@ -138,7 +150,7 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRO
 
 ```bash
 # 查询单日数据
-python sse_market_data_crawler.py --date 2021-12-24
+python sse_market_data_crawler.py --date 2026-04-28
 
 # 查询日期范围
 python sse_market_data_crawler.py --start 2021-12-20 --end 2021-12-26
@@ -149,15 +161,15 @@ python sse_market_data_crawler.py --start 2021-12-20 --end 2021-12-26
 ```python
 def get_market_data(date_str):
     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-    cutoff_date = datetime(2021, 12, 24)
+    new_api_start = datetime(2021, 12, 25)  # 新网站启用日期
 
-    if date_obj >= cutoff_date:
-        # 使用新API (2021-12-27 及之后)
+    if date_obj >= new_api_start:
+        # 使用新版API (2021-12-25 及之后)
         raw_data = fetch_market_data_by_new_api(date_str)
         if raw_data:
             return parse_new_api_data(raw_data)
 
-    # 使用历史API (支持1999年至今)
+    # 使用历史API（支持1999年至2021-12-24）
     raw_data = fetch_market_data_by_history_api(date_str)
     if raw_data:
         return parse_history_data(raw_data, date_str)
@@ -167,17 +179,35 @@ def get_market_data(date_str):
 
 ---
 
-## 五、常见问题
+## 五、新旧API字段对比
 
-### 5.1 为什么2021-12-24的数据新旧API不同？
+| 指标 | 历史API字段 | 新版API字段 | 单位 |
+|------|------------|------------|------|
+| 挂牌数 | TX_NUM | LIST_NUM | 个 |
+| 市盈率 | AVG_PROFIT_RATE | AVG_PE_RATE | 倍 |
+| 完整市盈率 | AVG_PROFIT_RATE_FULL | - | 倍 |
+| 市价总值 | MKT_VALUE | TOTAL_VALUE | 亿元 |
+| 流通市值 | NEGOTIABLE_VALUE | NEGO_VALUE | 亿元 |
+| 成交金额 | TX_AMOUNT | TRADE_AMT | 亿元 |
+| 成交量 | TX_VOLUME | TRADE_VOL | 亿股 |
+| 换手率 | TOTAL_MK_CAP_RATE | TOTAL_TO_RATE | % |
+| 流通换手率 | EXCHANGE_RATE | NEGO_TO_RATE | % |
+| 次新股换手率 | SUB_NEW_STOCK_RATE | - | % |
+| 交易笔数 | TRADING_TX | - | 万笔 |
+
+---
+
+## 六、常见问题
+
+### 6.1 为什么 2021-12-24 的数据新旧API不同？
 
 2021-12-24 是两个 API 的**分界点**：
 - 历史API在2021-12-24有完整数据（6个分类）
-- 新API在2021-12-24没有数据（需要2021-12-27才开始有）
+- 新版API在2021-12-24没有数据（从2021-12-25开始才有）
 
 **解决方案**：爬虫会自动判断，2021-12-24及之前的日期使用历史API。
 
-### 5.2 TYPE=40 和 TYPE=12 有什么区别？
+### 6.2 TYPE=40 和 TYPE=12 有什么区别？
 
 | TYPE | 说明 |
 |------|------|
@@ -186,11 +216,11 @@ def get_market_data(date_str):
 
 两者数据完全一致，使用时只取 TYPE=40 即可。
 
-### 5.3 TX_NUM 字段的含义？
+### 6.3 TX_NUM 字段的含义？
 
 TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量），而不是成交笔数。
 
-### 5.4 股票回购(TYPE=43)数据特点
+### 6.4 股票回购(TYPE=43)数据特点
 
 | 字段 | 值 |
 |------|-----|
@@ -203,7 +233,7 @@ TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量）
 
 ---
 
-## 六、参考链接
+## 七、参考链接
 
 - 新市场数据页面：https://www.sse.com.cn/market/stockdata/overview/day/
 - 旧市场数据页面：https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml
@@ -211,8 +241,9 @@ TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量）
 
 ---
 
-## 七、更新日志
+## 八、更新日志
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-04-29 | v1.1 | 修正API分界日期为2021-12-25 |
 | 2026-04-28 | v1.0 | 初版文档创建 |
