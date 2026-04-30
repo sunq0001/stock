@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>模拟炒股 - 个股收益分析</title>
+  <title>数据历史走势分析</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
@@ -429,10 +429,10 @@
 <!-- ===== HEADER ===== -->
 <header class="header">
   <div class="header-inner">
-    <a href="/" class="logo">📈 上证大盘PE</a>
+    <a href="/" class="logo">📈 指标走势</a>
     <div class="search-wrap">
       <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="searchInput" placeholder="代码 / 名称 / 拼音（如 600519 / 茅台 / gzmt）" autocomplete="off">
+      <input type="text" id="searchInput" placeholder="代码 / 名称 / 拼音" autocomplete="off">
       <div class="dropdown" id="dropdown"></div>
     </div>
   </div>
@@ -446,7 +446,7 @@
     <!-- Stock info bar -->
     <div class="card" id="infoCard">
       <div id="stockBar">
-        <div class="placeholder-hint">🔍 请在顶部搜索框输入股票代码或名称</div>
+        <div class="placeholder-hint">🔍 请在顶部搜索框输入代码或名称</div>
       </div>
     </div>
 
@@ -459,11 +459,11 @@
     <!-- 大盘PE走势图 -->
     <div class="card" id="marketPeCard" style="margin-top:20px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <div style="font-size:15px; font-weight:600; color:#f0f6fc;">📊 上证大盘市盈率历史走势</div>
+        <div style="font-size:15px; font-weight:600; color:#f0f6fc;">📊 全局指标历史走势</div>
         <div id="peStats" style="display:flex; gap:16px; font-size:12px; color:#8b949e;">
-          <span>当前: <b id="peCurrent" style="color:#58a6ff">--</b></span>
+          <span>指标: <b id="peCurrent" style="color:#58a6ff">--</b></span>
           <span>分位: <b id="pePercentile" style="color:#58a6ff">--</b></span>
-          <span>平均: <b id="peAvg" style="color:#8b949e">--</b></span>
+          <span>均值: <b id="peAvg" style="color:#8b949e">--</b></span>
         </div>
       </div>
       <div id="peChart" style="width:100%; height:280px;"></div>
@@ -475,18 +475,18 @@
 
     <!-- 交易输入 -->
     <div class="card" id="tradePanel">
-      <div class="panel-title">📝 模拟交易参数</div>
+      <div class="panel-title">📝 历史收益分析参数</div>
 
       <div class="form-row">
-        <label>买入日期</label>
+        <label>起始日期</label>
         <div class="date-input-wrap">
-          <input type="text" id="buyDate" placeholder="选择买入日期" readonly>
+          <input type="text" id="buyDate" placeholder="选择起始日期" readonly>
           <svg class="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
       </div>
       <div class="row2">
         <div class="form-row">
-          <label>买入金额（元）</label>
+          <label>投入金额（元）</label>
           <input type="number" id="buyAmount" placeholder="100000" min="1000" step="1000">
         </div>
         <div class="form-row">
@@ -496,14 +496,14 @@
       </div>
 
       <div class="form-row">
-        <label>卖出日期</label>
+        <label>截止日期</label>
         <div class="date-input-wrap">
-          <input type="text" id="sellDate" placeholder="选择卖出日期" readonly>
+          <input type="text" id="sellDate" placeholder="选择截止日期" readonly>
           <svg class="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
       </div>
 
-      <button class="btn-calc" id="calcBtn" disabled>计算收益</button>
+      <button class="btn-calc" id="calcBtn" disabled>计算结果</button>
       <div id="calcErr"></div>
     </div>
 
@@ -514,15 +514,15 @@
       <!-- 核心指标 -->
       <div class="metric-grid">
         <div class="metric">
-          <div class="metric-label">总收益</div>
+          <div class="metric-label">总变化</div>
           <div class="metric-value" id="r-total-profit">--</div>
         </div>
         <div class="metric">
-          <div class="metric-label">总收益率</div>
+          <div class="metric-label">总变化率</div>
           <div class="metric-value" id="r-total-rate">--</div>
         </div>
         <div class="metric">
-          <div class="metric-label">年化收益率</div>
+          <div class="metric-label">年化变化率</div>
           <div class="metric-value" id="r-annual">--</div>
         </div>
         <div class="metric">
@@ -532,12 +532,12 @@
       </div>
 
       <!-- 收益构成条形 -->
-      <div class="section-label">收益构成</div>
+      <div class="section-label">结果构成</div>
       <div class="bar-wrap">
         <div class="bar-label-row">
-          <span>🔵 股价收益</span>
-          <span>🟢 现金分红</span>
-          <span>🔴 交易费用</span>
+          <span>🔵 价差收益</span>
+          <span>🟢 分红</span>
+          <span>🔴 费用</span>
         </div>
         <div class="bar-bg">
           <div class="bar-stock" id="barStock" style="width:0%"></div>
@@ -547,15 +547,15 @@
       </div>
 
       <!-- 买入信息 -->
-      <div class="section-label">买入</div>
-      <div class="detail-row"><span class="detail-label">买入日期</span><span class="detail-val" id="r-buy-date">--</span></div>
-      <div class="detail-row"><span class="detail-label">买入价（收盘）</span><span class="detail-val" id="r-buy-price">--</span></div>
-      <div class="detail-row"><span class="detail-label">买入股数</span><span class="detail-val" id="r-buy-shares">--</span></div>
+      <div class="section-label">起始</div>
+      <div class="detail-row"><span class="detail-label">起始日期</span><span class="detail-val" id="r-buy-date">--</span></div>
+      <div class="detail-row"><span class="detail-label">起始价</span><span class="detail-val" id="r-buy-price">--</span></div>
+      <div class="detail-row"><span class="detail-label">持有股数</span><span class="detail-val" id="r-buy-shares">--</span></div>
       <div class="detail-row"><span class="detail-label">实际投入</span><span class="detail-val" id="r-buy-cost">--</span></div>
-      <div class="detail-row"><span class="detail-label">佣金</span><span class="detail-val neg" id="r-buy-comm">--</span></div>
+      <div class="detail-row"><span class="detail-label">手续费</span><span class="detail-val neg" id="r-buy-comm">--</span></div>
 
       <!-- 持仓期间 -->
-      <div class="section-label">持仓期间 · 分红送转</div>
+      <div class="section-label">持仓期间 · 分红</div>
       <div id="dividendList" class="div-list"></div>
 
       <!-- 分红统计 -->
@@ -571,7 +571,7 @@
             <div class="metric-value blue" id="r-div-per-year" style="font-size:16px;">--</div>
           </div>
           <div class="metric" style="padding:10px;">
-            <div class="metric-label">现金分红收益率</div>
+            <div class="metric-label">分红率</div>
             <div class="metric-value green" id="r-div-yield" style="font-size:16px;">--</div>
           </div>
           <div class="metric" style="padding:10px;">
@@ -592,7 +592,7 @@
       </div>
 
       <div class="detail-row" style="margin-top:12px">
-        <span class="detail-label">现金分红合计</span>
+        <span class="detail-label">分红合计</span>
         <span class="detail-val pos" id="r-div-total">--</span>
       </div>
       <div class="detail-row">
@@ -601,18 +601,18 @@
       </div>
 
       <!-- 卖出信息 -->
-      <div class="section-label">卖出</div>
-      <div class="detail-row"><span class="detail-label">卖出日期</span><span class="detail-val" id="r-sell-date">--</span></div>
-      <div class="detail-row"><span class="detail-label">卖出价（收盘）</span><span class="detail-val" id="r-sell-price">--</span></div>
-      <div class="detail-row"><span class="detail-label">卖出金额</span><span class="detail-val" id="r-sell-amount">--</span></div>
-      <div class="detail-row"><span class="detail-label">佣金 + 印花税</span><span class="detail-val neg" id="r-sell-fee">--</span></div>
-      <div class="detail-row" id="r-bonus-tax-row" style="display:none;"><span class="detail-label">送股所得税</span><span class="detail-val neg" id="r-bonus-tax">--</span></div>
+      <div class="section-label">截止</div>
+      <div class="detail-row"><span class="detail-label">截止日期</span><span class="detail-val" id="r-sell-date">--</span></div>
+      <div class="detail-row"><span class="detail-label">截止价</span><span class="detail-val" id="r-sell-price">--</span></div>
+      <div class="detail-row"><span class="detail-label">结算金额</span><span class="detail-val" id="r-sell-amount">--</span></div>
+      <div class="detail-row"><span class="detail-label">费用合计</span><span class="detail-val neg" id="r-sell-fee">--</span></div>
+      <div class="detail-row" id="r-bonus-tax-row" style="display:none;"><span class="detail-label">税费</span><span class="detail-val neg" id="r-bonus-tax">--</span></div>
       <div class="detail-row"><span class="detail-label">实际到手</span><span class="detail-val" id="r-net-sell">--</span></div>
 
       <!-- 收益汇总 -->
       <div class="section-label">收益汇总</div>
       <div class="detail-row"><span class="detail-label">股价波动收益</span><span class="detail-val" id="r-stock-profit">--</span></div>
-      <div class="detail-row"><span class="detail-label">现金分红收入</span><span class="detail-val pos" id="r-div-income">--</span></div>
+      <div class="detail-row"><span class="detail-label">分红收入</span><span class="detail-val pos" id="r-div-income">--</span></div>
       <div class="detail-row"><span class="detail-label">总交易费用</span><span class="detail-val neg" id="r-total-fee">--</span></div>
       <div class="detail-row">
         <span class="detail-label" style="font-weight:600;color:#f0f6fc">综合净收益</span>
@@ -620,13 +620,9 @@
       </div>
 
       <div class="fee-note">
-        ※ 买入佣金按设定费率计算（最低5元）；卖出另加印花税0.1%；过户费0.002%。<br>
+        ※ 买入手续费按设定费率计算（最低5元）；卖出另加税费0.1%；过户费0.002%。<br>
         ※ 红利税：持股不满1个月20%，1-12个月10%，超1年免税（已简化处理）。
       </div>
-    </div>
-
-    <div class="disclaimer">
-      本工具仅供个人学习使用，不构成任何投资建议。历史收益不代表未来表现。股市有风险，投资需谨慎。
     </div>
   </div>
 </div>
@@ -927,7 +923,7 @@ async function doSearch(q) {
     const res  = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
     const list = await res.json();
     if (!Array.isArray(list) || list.length === 0) {
-      dropdown.innerHTML = '<div class="drop-item"><span class="drop-name">未找到相关股票</span></div>';
+      dropdown.innerHTML = '<div class="drop-item"><span class="drop-name">未找到相关数据</span></div>';
     } else {
       dropdown.innerHTML = list.map(s =>
         `<div class="drop-item" onclick="loadStock('${s.code}')">
@@ -982,7 +978,7 @@ async function loadStock(code) {
     allotmentData = aJson.allotments || [];
     allLoaded = kJson.all_loaded || false;
 
-    // 更新股票信息栏
+    // 更新信息栏
     const lastClose = klineData.closes[klineData.closes.length - 1];
     setInfo(`
       <div class="stock-bar">

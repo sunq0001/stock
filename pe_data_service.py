@@ -472,11 +472,67 @@ def get_allotment_data(code):
 
 # ========== 大盘PE数据函数 ==========
 
-def get_sse_pe_from_local_db(start_date=None, end_date=None):
-    """从本地SQLite数据库获取上证PE数据"""
+def get_sse_pe_from_local_db(start_date=None, end_date=None, product_type='40'):
+    """从本地SQLite数据库获取上证PE数据
+    
+    Args:
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+        product_type: 产品类型，默认'40'为股票汇总
+    """
     if not os.path.exists(LOCAL_DB_PATH):
         return []
     
+    conn = sqlite3.connect(LOCAL_DB_PATH)
+    cursor = conn.cursor()
+    
+    # 尝试新表结构 sse_market_daily
+    query = """
+        SELECT trade_date, pe_ratio, turnover_rate, 
+               listed_count, market_cap, float_market_cap,
+               trade_amount, trade_vol, sub_new_stock_rate, float_turnover_rate
+        FROM sse_market_daily 
+        WHERE product_type = ?
+    """
+    params = [product_type]
+    
+    if start_date:
+        query += " AND trade_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND trade_date <= ?"
+        params.append(end_date)
+    
+    query += " ORDER BY trade_date ASC"
+    
+    try:
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                "date": row[0], 
+                "pe": row[1], 
+                "turnover": row[2],
+                "listed_count": row[3],
+                "market_cap": row[4],
+                "float_market_cap": row[5],
+                "trade_amount": row[6],
+                "trade_vol": row[7],
+                "sub_new_stock_rate": row[8],
+                "float_turnover_rate": row[9],
+            }
+            for row in rows
+        ]
+    except sqlite3.OperationalError:
+        # 兼容旧表结构 sse_pe
+        conn.close()
+        return _get_sse_pe_from_old_db(start_date, end_date)
+
+
+def _get_sse_pe_from_old_db(start_date=None, end_date=None):
+    """兼容旧数据库结构"""
     conn = sqlite3.connect(LOCAL_DB_PATH)
     cursor = conn.cursor()
     
@@ -673,9 +729,9 @@ def get_allotment_api(code):
 def serve_index():
     return send_from_directory('html', 'index.html')
 
-@app.route('/stock.html')
-def serve_stock():
-    return send_from_directory('html', 'stock.html')
+@app.route('/market.html')
+def serve_market():
+    return send_from_directory('html', 'market.html')
 
 # 提供静态文件（CSS、JS等）
 @app.route('/<path:filename>')

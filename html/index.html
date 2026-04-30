@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>上证大盘市盈率历史走势（1990-2026）</title>
+<title>历史数据走势分析</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -23,7 +23,7 @@
   .header-top {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 16px;
     margin-bottom: 8px;
     flex-wrap: wrap;
   }
@@ -42,6 +42,21 @@
   .header .subtitle span {
     color: #58a6ff;
     font-weight: 600;
+  }
+  .learning-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: rgba(88, 166, 255, 0.15);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #58a6ff;
+  }
+  .learning-badge svg {
+    width: 14px;
+    height: 14px;
   }
   /* 股票搜索框 */
   .stock-search-wrap {
@@ -392,28 +407,31 @@
 
 <div class="header">
   <div class="header-top">
-    <h1>📈 上证大盘市盈率历史走势</h1>
+    <h1>📈 历史数据走势分析</h1>
+    <div class="learning-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      学习研究
+    </div>
     <div class="stock-search-wrap">
       <svg class="search-icon-pe" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="peStockSearch" placeholder="🔍 输入股票代码 / 名称，模拟炒股" autocomplete="off">
+      <input type="text" id="peStockSearch" placeholder="🔍 输入代码 / 名称，查看历史走势" autocomplete="off">
       <div class="stock-dropdown" id="peDropdown"></div>
     </div>
   </div>
-  <div class="subtitle">
-    数据来源：<span>上交所统计年鉴 / 乐咕乐股 / AKShare</span> &nbsp;·&nbsp;
-    时间跨度：<span>1990年12月 — 2026年4月</span> &nbsp;·&nbsp;
-    口径：<span>上证A股平均市盈率</span>
-  </div>
+
 </div>
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-label">当前市盈率</div>
+    <div class="stat-label">当前指标值</div>
     <div class="stat-value current">--</div>
     <div class="stat-sub">--</div>
   </div>
   <div class="stat-item">
-    <div class="stat-label">当前百分位</div>
+    <div class="stat-label">当前分位</div>
     <div class="stat-value" style="color:#e3b341">--</div>
     <div class="stat-sub">--</div>
   </div>
@@ -445,10 +463,10 @@
 </div>
 
 <div class="zone-labels">
-  <div class="zone-item"><div class="zone-dot" style="background:rgba(248,81,73,0.6)"></div>极度高估（PE &gt; 50）</div>
-  <div class="zone-item"><div class="zone-dot" style="background:rgba(227,179,65,0.6)"></div>高估区（PE 30-50）</div>
-  <div class="zone-item"><div class="zone-dot" style="background:rgba(63,185,80,0.4)"></div>合理区（PE 15-30）</div>
-  <div class="zone-item"><div class="zone-dot" style="background:rgba(88,166,255,0.4)"></div>低估区（PE &lt; 15）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(248,81,73,0.6)"></div>高位区（指标 &gt; 50）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(227,179,65,0.6)"></div>偏高区（指标 30-50）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(63,185,80,0.4)"></div>中间区（指标 15-30）</div>
+  <div class="zone-item"><div class="zone-dot" style="background:rgba(88,166,255,0.4)"></div>低位区（指标 &lt; 15）</div>
   <div class="zone-item" style="border-left:1px solid #21262d;padding-left:20px;margin-left:4px" id="zoneLabelsPct">加载中...</div>
 </div>
 
@@ -461,13 +479,13 @@
     <div style="width:280px;display:flex;flex-direction:column;gap:8px">
       <div id="gauge-chart" style="flex:1"></div>
       <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px">
-        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">百分位参考值</div>
+        <div style="font-size:11px;color:#8b949e;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">分位参考值</div>
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
-          <div style="display:flex;justify-content:space-between"><span style="color:#58a6ff">P10</span><span style="color:#e6edf3;font-weight:600" id="refP10">-- <span style="color:#6e7681;font-weight:400;font-size:11px">极度低估</span></span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:#3fb950">P25</span><span style="color:#e6edf3;font-weight:600" id="refP25">-- <span style="color:#6e7681;font-weight:400;font-size:11px">低估</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#58a6ff">P10</span><span style="color:#e6edf3;font-weight:600" id="refP10">-- <span style="color:#6e7681;font-weight:400;font-size:11px">低分位</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#3fb950">P25</span><span style="color:#e6edf3;font-weight:600" id="refP25">-- <span style="color:#6e7681;font-weight:400;font-size:11px">偏低</span></span></div>
           <div style="display:flex;justify-content:space-between"><span style="color:#e3b341">P50</span><span style="color:#e6edf3;font-weight:600" id="refP50">-- <span style="color:#6e7681;font-weight:400;font-size:11px">中位数</span></span></div>
           <div style="display:flex;justify-content:space-between"><span style="color:#f0883e">P75</span><span style="color:#e6edf3;font-weight:600" id="refP75">-- <span style="color:#6e7681;font-weight:400;font-size:11px">偏高</span></span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:#f85149">P90</span><span style="color:#e6edf3;font-weight:600" id="refP90">-- <span style="color:#6e7681;font-weight:400;font-size:11px">极度高估</span></span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#f85149">P90</span><span style="color:#e6edf3;font-weight:600" id="refP90">-- <span style="color:#6e7681;font-weight:400;font-size:11px">高分位</span></span></div>
         </div>
         <div style="margin-top:10px;padding-top:8px;border-top:1px solid #21262d;font-size:11px;color:#6e7681;line-height:1.6" id="currentPeDisplay">
           加载中...
@@ -476,27 +494,27 @@
       <div class="pe-query">
         <div class="pe-query-title">🔍 智能查询</div>
         <div class="pe-query-tabs">
-          <button class="pe-query-tab active" data-tab="pe2pct" onclick="switchQueryTab('pe2pct')">PE → 百分位</button>
-          <button class="pe-query-tab" data-tab="pct2pe" onclick="switchQueryTab('pct2pe')">百分位 → PE</button>
+          <button class="pe-query-tab active" data-tab="pe2pct" onclick="switchQueryTab('pe2pct')">指标 → 分位</button>
+          <button class="pe-query-tab" data-tab="pct2pe" onclick="switchQueryTab('pct2pe')">分位 → 指标</button>
         </div>
-        <!-- Tab 1: PE → 百分位 -->
+        <!-- Tab 1: 指标 → 分位 -->
         <div class="pe-query-panel active" id="panel-pe2pct">
           <div class="pe-query-row">
-            <input type="number" class="pe-query-input" id="pe-query-input" placeholder="PE值，如15" step="0.1" min="0" max="200">
+            <input type="number" class="pe-query-input" id="pe-query-input" placeholder="指标值，如15" step="0.1" min="0" max="200">
             <button class="pe-query-btn" onclick="doPeQuery()">查询</button>
           </div>
           <div class="pe-query-result" id="pe-query-result">
-            <span class="result-hint">输入PE值查看历史百分位</span>
+            <span class="result-hint">输入指标值查看历史分位</span>
           </div>
         </div>
-        <!-- Tab 2: 百分位 → PE -->
+        <!-- Tab 2: 分位 → 指标 -->
         <div class="pe-query-panel" id="panel-pct2pe">
           <div class="pe-query-row">
-            <input type="number" class="pe-query-input" id="pct-query-input" placeholder="百分位，如90" step="0.1" min="0" max="100">
+            <input type="number" class="pe-query-input" id="pct-query-input" placeholder="分位，如90" step="0.1" min="0" max="100">
             <button class="pe-query-btn" onclick="doPctQuery()">反查</button>
           </div>
           <div class="pe-query-result" id="pct-query-result">
-            <span class="result-hint">输入百分位查看对应PE值</span>
+            <span class="result-hint">输入分位查看对应指标值</span>
           </div>
         </div>
       </div>
@@ -512,15 +530,12 @@
   <span><kbd>底部滑块</kbd> 选择时间范围</span>
 </div>
 
+
 <div class="note">
-  <strong>注：</strong>数据为上证A股日度市盈率，1999年起由上交所每日公布。数据每日收盘后自动更新。
+  <strong>注：</strong>数据基于公开历史指标，每日自动更新。
 </div>
 
 <div class="footer">
-  数据平台：<a href="https://akshare.akfamily.xyz" target="_blank">AKShare</a>（开源免费）&nbsp;·&nbsp;
-  数据来源：<a href="https://www.sse.com.cn" target="_blank">上海证券交易所</a> / 
-  <a href="https://legulegu.com/stockdata/shanghaiPE" target="_blank">乐咕乐股</a>&nbsp;·&nbsp;
-  仅供参考，不构成投资建议
 </div>
 
 <script>
@@ -562,7 +577,7 @@ async function loadData() {
     peP75 = allPeSorted[Math.floor(allPeSorted.length * 0.75)];
     peP90 = allPeSorted[Math.floor(allPeSorted.length * 0.9)];
     
-    // 计算当前百分位
+    // 计算当前分位
     currentPct = calcPercentile(currentPe);
     
     // 更新页面统计信息
@@ -587,9 +602,9 @@ function updateStats(json) {
   document.querySelector('.stat-value.current').textContent = stats.current.toFixed(2) + 'x';
   document.querySelector('.stat-item .stat-sub').textContent = dates[dates.length - 1];
   
-  // 更新百分位
+  // 更新分位
   document.querySelectorAll('.stat-value')[1].textContent = stats.percentile.toFixed(1) + '%';
-  document.querySelectorAll('.stat-sub')[1].textContent = `击败历史${(100 - stats.percentile).toFixed(1)}%的时点`;
+  document.querySelectorAll('.stat-sub')[1].textContent = `处于历史P${Math.round(stats.percentile)}分位`;
   
   // 更新均值
   document.querySelector('.stat-value.avg').textContent = stats.avg.toFixed(2) + 'x';
@@ -607,7 +622,7 @@ function updateStats(json) {
   document.querySelectorAll('.stat-value')[6].textContent = (parseInt(endYear) - parseInt(startYear)) + '年';
   document.querySelectorAll('.stat-sub')[6].textContent = `${startYear}-${endYear}`;
   
-  // 更新右侧百分位参考
+  // 更新右侧分位参考
   document.getElementById('refP10').textContent = peP10.toFixed(2) + 'x';
   document.getElementById('refP25').textContent = peP25.toFixed(2) + 'x';
   document.getElementById('refP50').textContent = peP50.toFixed(2) + 'x';
@@ -622,7 +637,7 @@ function updateStats(json) {
   document.getElementById('zoneLabelsPct').innerHTML = `<span style="color:#58a6ff">P10=${peP10.toFixed(2)}x</span> · <span style="color:#3fb950">P25=${peP25.toFixed(2)}x</span> · <span style="color:#e3b341">P50=${peP50.toFixed(2)}x</span> · <span style="color:#f0883e">P75=${peP75.toFixed(2)}x</span> · <span style="color:#f85149">P90=${peP90.toFixed(2)}x</span>`;
 }
 
-// 百分位计算：val在历史所有数据中排多少%
+// 分位计算：val在历史所有数据中排多少%
 function calcPercentile(val) {
   let below = 0;
   for (let i = 0; i < allPeSorted.length; i++) {
@@ -631,14 +646,14 @@ function calcPercentile(val) {
   return Math.round(below / allPeSorted.length * 1000) / 10;
 }
 
-// 百分位对应的颜色和文案
+// 分位对应的颜色和文案
 function pctColor(pct) {
-  if (pct < 10) return { color: '#58a6ff', text: '极度低估' };
-  if (pct < 25) return { color: '#3fb950', text: '低估区间' };
+  if (pct < 10) return { color: '#58a6ff', text: '低位区' };
+  if (pct < 25) return { color: '#3fb950', text: '偏低区间' };
   if (pct < 50) return { color: '#56d364', text: '偏低区间' };
   if (pct < 75) return { color: '#e3b341', text: '偏高区间' };
-  if (pct < 90) return { color: '#f0883e', text: '高估区间' };
-  return { color: '#f85149', text: '极度高估' };
+  if (pct < 90) return { color: '#f0883e', text: '偏高区间' };
+  return { color: '#f85149', text: '高位区' };
 }
 
 // 主图
@@ -670,10 +685,10 @@ function initCharts() {
       const idx_val = idx >= 0 ? indexValues[idx] : '-';
       let zone = '';
       let zoneColor = '';
-      if (pe > 50) { zone = '极度高估'; zoneColor = '#f85149'; }
-      else if (pe > 30) { zone = '高估区间'; zoneColor = '#e3b341'; }
-      else if (pe > 15) { zone = '合理区间'; zoneColor = '#3fb950'; }
-      else { zone = '低估区间'; zoneColor = '#58a6ff'; }
+      if (pe > 50) { zone = '高位区'; zoneColor = '#f85149'; }
+      else if (pe > 30) { zone = '偏高区'; zoneColor = '#e3b341'; }
+      else if (pe > 15) { zone = '中间区'; zoneColor = '#3fb950'; }
+      else { zone = '低位区'; zoneColor = '#58a6ff'; }
       const freqLabel = '（日度数据）';
       const pct = calcPercentile(pe);
       const pctInfo = pctColor(pct);
@@ -683,9 +698,9 @@ function initCharts() {
         <div style="font-size:12px;color:#8b949e;margin-bottom:6px">${date} ${freqLabel}</div>
         <div style="font-size:20px;font-weight:700;color:#e6edf3;margin-bottom:4px">${pe.toFixed(2)}x</div>
         <div style="font-size:12px;color:${zoneColor};margin-bottom:4px">● ${zone}</div>
-        <div style="font-size:14px;font-weight:600;color:${pctInfo.color};margin-bottom:6px">📊 历史百分位：${pct}%（${pctInfo.text}）</div>
-        <div style="font-size:12px;color:#8b949e">上证指数：<span style="color:#e6edf3">${typeof idx_val === 'number' ? idx_val.toFixed(2) : idx_val}</span></div>
-        <div style="font-size:12px;color:#8b949e;margin-top:2px">均值偏离：<span style="color:${pe > peAvg ? '#f85149' : '#3fb950'}">${pe > peAvg ? '+' : ''}${(pe - peAvg).toFixed(2)}x</span></div>
+        <div style="font-size:14px;font-weight:600;color:${pctInfo.color};margin-bottom:6px">📊 历史分位：${pct}%（${pctInfo.text}）</div>
+        <div style="font-size:12px;color:#8b949e">指标值：<span style="color:#e6edf3">${typeof idx_val === 'number' ? idx_val.toFixed(2) : idx_val}</span></div>
+        <div style="font-size:12px;color:#8b949e;margin-top:2px">均值偏离：<span style="color:${pe > peAvg ? '#f85149' : '#3fb950'}">${pe > peAvg ? '+' : ''}${(pe - peAvg).toFixed(2)}</span></div>
       </div>`;
     }
   },
@@ -708,7 +723,7 @@ function initCharts() {
   },
   yAxis: {
     type: 'value',
-    name: '市盈率 (倍)',
+    name: '指标值',
     nameTextStyle: { color: '#8b949e', fontSize: 12, padding: [0, 50, 0, 0] },
     min: 0,
     max: function(v) { return Math.ceil(v.max / 10) * 10 + 10; },
@@ -747,7 +762,7 @@ function initCharts() {
   series: [
     {
       id: 'pe-line',
-      name: '市盈率',
+      name: '指标',
       type: 'line',
       data: peValues,
       smooth: 0.3,
@@ -857,7 +872,7 @@ const miniOption = {
 
   miniChart.setOption(miniOption);
 
-  // ===== 百分位仪表盘 =====
+  // ===== 分位仪表盘 =====
   gaugeChart.setOption(gaugeOption(currentPct, currentPe));
 
 function gaugeOption(pct, pe) {
@@ -938,7 +953,7 @@ function gaugeOption(pct, pe) {
         {
           type: 'text',
           style: {
-            text: '历史百分位',
+            text: '分位',
             fontSize: 11,
             fill: '#6e7681',
             textAlign: 'center',
@@ -1050,7 +1065,7 @@ function switchQueryTab(tab) {
   document.getElementById('panel-' + tab).classList.add('active');
 }
 
-// ===== PE百分位查询（PE → 百分位）=====
+// ===== 分位查询（指标 → 分位）=====
 // 记录低于threshold的数据索引和时段
 function findBelowThreshold(threshold) {
   const belowIndices = [];
@@ -1118,7 +1133,7 @@ function doPeQuery() {
       <span style="margin-left:auto;color:${info.color};font-weight:700;font-size:18px">${pct}%</span>
     </div>
     <div class="result-detail">
-      <span style="color:${info.color}">${info.text}</span> · 低于 ${100 - pct}% 的历史时点
+      <span style="color:${info.color}">${info.text}</span> · 历史分位 P${pct}
     </div>
     <hr class="result-sep">
     <div class="result-detail">
@@ -1134,11 +1149,11 @@ function doPeQuery() {
 
 function clearPeQuery() {
   document.getElementById('pe-query-input').value = '';
-  document.getElementById('pe-query-result').innerHTML = '<span class="result-hint">输入PE值查看历史百分位</span>';
+  document.getElementById('pe-query-result').innerHTML = '<span class="result-hint">输入指标值查看历史分位</span>';
   clearQueryHighlight();
 }
 
-// ===== 百分位反查（百分位 → PE）=====
+// ===== 分位反查（分位 → 指标）=====
 function pctToPe(pctInput) {
   // 支持小数百分位，插值查找
   const pctFloor = Math.floor(pctInput);
@@ -1158,7 +1173,7 @@ function doPctQuery() {
   const val = parseFloat(input.value);
 
   if (isNaN(val) || val < 0 || val > 100) {
-    result.innerHTML = '<span style="color:#f85149">请输入0-100之间的百分位</span>';
+    result.innerHTML = '<span style="color:#f85149">请输入0-100之间的分位</span>';
     clearQueryHighlight();
     return;
   }
@@ -1191,7 +1206,7 @@ function doPctQuery() {
       <span style="color:#8b949e">x</span>
     </div>
     <div class="result-detail">
-      <span style="color:${info.color}">${info.text}</span> · 历史PE ≤ ${pe}x
+      <span style="color:${info.color}">${info.text}</span> · 历史指标 ≤ ${pe}
     </div>
     <hr class="result-sep">
     <div class="result-detail">
@@ -1207,7 +1222,7 @@ function doPctQuery() {
 
 function clearPctQuery() {
   document.getElementById('pct-query-input').value = '';
-  document.getElementById('pct-query-result').innerHTML = '<span class="result-hint">输入百分位查看对应PE值</span>';
+  document.getElementById('pct-query-result').innerHTML = '<span class="result-hint">输入分位查看对应指标值</span>';
   clearQueryHighlight();
 }
 
@@ -1244,7 +1259,7 @@ document.getElementById('pct-query-input').addEventListener('keydown', function(
 });
 
 // ============================================================
-// 股票搜索入口（跳转到模拟炒股页面）
+// 搜索入口（跳转到个股历史走势页面）
 // ============================================================
 (function() {
   const API_BASE = '/api';
@@ -1277,7 +1292,7 @@ document.getElementById('pct-query-input').addEventListener('keydown', function(
       const res  = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
       const list = await res.json();
       if (!Array.isArray(list) || list.length === 0) {
-        dropdown.innerHTML = '<div class="sdrop-item"><span class="sdrop-name">未找到相关股票</span></div>';
+        dropdown.innerHTML = '<div class="sdrop-item"><span class="sdrop-name">未找到相关数据</span></div>';
       } else {
         dropdown.innerHTML = list.map(s =>
           `<div class="sdrop-item" onclick="goToStock('${s.code}')">
@@ -1293,7 +1308,7 @@ document.getElementById('pct-query-input').addEventListener('keydown', function(
   }
 
   window.goToStock = function(code) {
-    window.location.href = `/stock.html?code=${code}`;
+    window.location.href = `/market.html?code=${code}`;
   };
 })();
 

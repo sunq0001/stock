@@ -8,7 +8,7 @@
 stock-project-local/
 ├── html/                    # 前端静态文件
 │   ├── index.html          # 主页面
-│   ├── stock.html          # 股票详情页面
+│   ├── market.html        # 市场详情页面
 │   └── data/               # 数据文件目录
 ├── nginx/                  # Nginx配置
 │   └── conf.d/

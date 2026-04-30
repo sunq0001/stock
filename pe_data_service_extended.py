@@ -373,9 +373,9 @@ def get_allotment_api(code):
 def serve_index():
     return send_from_directory('html', 'index.html')
 
-@app.route('/stock.html')
-def serve_stock():
-    return send_from_directory('html', 'stock.html')
+@app.route('/market.html')
+def serve_market():
+    return send_from_directory('html', 'market.html')
 
 # 提供静态文件（CSS、JS等）
 @app.route('/<path:filename>')
@@ -388,7 +388,7 @@ if __name__ == '__main__':
     print(f"数据源模式: {DATA_SOURCE}")
     print(f"远程API: {REMOTE_API_URL}")
     print(f"服务已启动: http://localhost:{port}")
-    print(f"前端页面: http://localhost:{port}/stock.html")
+    print(f"前端页面: http://localhost:{port}/market.html")
     print(f"大盘PE API: http://localhost:{port}/api/market/pe")
     print(f"股票搜索API: http://localhost:{port}/api/search?q=茅台")
     print(f"健康检查: http://localhost:{port}/api/health")

@@ -27,7 +27,7 @@ docker-compose down
 
 ### 2. 访问服务
 
-- **前端页面**: http://localhost:8080/stock.html
+- **前端页面**: http://localhost:8080/market.html
 - **API健康检查**: http://localhost:8080/api/health
 - **大盘PE数据**: http://localhost:8080/api/market/pe
 - **股票搜索**: http://localhost:8080/api/search?q=茅台
