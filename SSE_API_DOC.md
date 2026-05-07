@@ -319,18 +319,19 @@ TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量）
 
 ## 九、后端 API 接口
 
-### 9.1 PE历史数据
+### 9.1 市场历史数据（全量）
 
 **接口**：`GET /api/market/pe/history`
 
-**说明**：获取上证主板A股历史市盈率数据，从InfluxDB查询并聚合。
+**说明**：获取大盘每日完整市场数据，按天返回所有产品类别（主板A/主板B/科创板/全部）的所有字段（市盈率、换手率、市值、成交额等）。
 
-**查询逻辑**（pe_data_service_influxdb.py 第300-306行）：
+**查询逻辑**：从 InfluxDB 的 `sse_market` measurement 查询所有字段，按 `(日期, product_code)` 分组聚合。
+
+**Flux 查询**：
 ```flux
 from(bucket: "market_data")
-  |> range(start: 0)                    // 全部历史数据
+  |> range(start: 0)
   |> filter(fn: (r) => r._measurement == "sse_market")
-  |> filter(fn: (r) => r._field == "pe" or r._field == "pe_ratio")  // PE相关字段
   |> sort(columns: ["_time"])
 ```
 
@@ -338,27 +339,75 @@ from(bucket: "market_data")
 ```json
 {
   "data": [
-    {"date": "2025-05-06", "pe": 13.56, "pe_ratio": 13.56},
-    {"date": "2025-05-07", "pe": 13.68, "pe_ratio": 13.68},
-    ...
+    {
+      "date": "2025-05-06",
+      "pe": 13.56,
+      "products": {
+        "01": {
+          "name": "主板A",
+          "pe_ratio": 13.56,
+          "turnover_rate": 0.93,
+          "float_turnover_rate": 1.11,
+          "market_cap": 515376.26,
+          "float_market_cap": 432198.23,
+          "trade_amount": 4785.61,
+          "trade_vol": 391.11,
+          "listed_count": 2073
+        },
+        "02": { "name": "主板B", "pe_ratio": 8.12, ... },
+        "03": { "name": "科创板", "pe_ratio": 45.6, ... },
+        "17": { "name": "全部", "pe_ratio": 15.2, ... }
+      }
+    }
   ],
   "stats": {
-    "current": 16.97,       // 最新PE值
-    "percentile": 92.6,     // 历史分位（%）
-    "avg": 15.67,           // 历史均值
-    "max": 17.21,           // 历史最高
-    "min": 13.56,           // 历史最低
-    "count": 242            // 数据点数量
+    "current": 16.97,
+    "percentile": 92.6,
+    "avg": 15.67,
+    "max": 17.21,
+    "min": 13.56,
+    "count": 242
   },
   "data_source": "influxdb"
 }
 ```
 
-### 9.2 当前PE数据
+**可用字段说明**（每个 `products.{code}` 中）：
+
+| 字段名 | 中文说明 | 单位 |
+|--------|----------|------|
+| `name` | 产品名称 | - |
+| `pe_ratio` | 平均市盈率 | 倍 |
+| `pe_ratio_full` | 完整市盈率（仅历史API） | 倍 |
+| `listed_count` | 挂牌数 | 个 |
+| `market_cap` | 市价总值 | 亿元 |
+| `market_cap_full` | 完整市值（仅历史API） | 亿元 |
+| `float_market_cap` | 流通市值 | 亿元 |
+| `float_market_cap_full` | 完整流通市值（仅历史API） | 亿元 |
+| `trade_amount` | 成交金额 | 亿元 |
+| `trade_amount_full` | 完整成交金额（仅历史API） | 亿元 |
+| `trade_vol` | 成交量 | 亿股 |
+| `trade_vol_full` | 完整成交量（仅历史API） | 亿股 |
+| `turnover_rate` | 换手率 | % |
+| `turnover_rate_full` | 完整换手率（仅历史API） | % |
+| `float_turnover_rate` | 流通换手率 | % |
+| `float_turnover_rate_full` | 完整流通换手率（仅历史API） | % |
+
+**产品代码对照**：
+
+| product_code | 名称 |
+|--------------|------|
+| `01` | 主板A |
+| `02` | 主板B |
+| `03` | 科创板 |
+| `11` | 股票回购 |
+| `17` | 全部 |
+
+### 9.2 当前市场概要
 
 **接口**：`GET /api/market/pe`
 
-**说明**：获取当前PE及历史统计摘要（最近365天）。
+**说明**：获取当前大盘PE值及历史统计摘要（最近365天），快速概要接口。**前端主图表已改用 9.1 全量接口。**
 
 ### 9.3 股票搜索
 
@@ -405,30 +454,33 @@ from(bucket: "market_data")
 
 ### 10.1 数据获取方式
 
-前端（html/index.html）不直接连接数据库，而是通过调用后端 API 获取数据。
+前端（html/market.html）不直接连接数据库，而是通过调用后端 API 获取数据。
 
-**核心代码**（index.html 第553-601行）：
+**大盘数据加载**（market.html 第764-797行）：
 ```javascript
-async function loadData() {
-  const res = await fetch('/api/market/pe/history');  // 调用后端API
+async function loadMarketPeData() {
+  const res = await fetch('/api/market/pe/history');  // 调用全量市场数据接口
   const json = await res.json();
 
-  // 提取日期和PE值
-  dates = json.data.map(d => d.date);
-  peValues = json.data.map(d => d.pe || 0);
+  // data 中每个元素包含:
+  //   date          - 日期
+  //   pe            - 向后兼容的主板A市盈率
+  //   products      - 所有产品类别的完整字段（主板A/B/科创板/全部）
+  //     .01.pe_ratio
+  //     .01.turnover_rate
+  //     .02.pe_ratio
+  //     ...
+  //
+  // 当前只渲染市盈率折线，products 数据保留给后续扩展
+  const dates = json.data.map(d => d.date);
+  const peValues = json.data.map(d => d.pe);
 
-  // 使用后端返回的统计数据
   if (json.stats) {
-    peAvg = json.stats.avg || 0;
-    currentPe = json.stats.current || 0;
+    currentPe = json.stats.current;
+    peAvg = json.stats.avg;
   }
 
-  // 计算分位数（P10, P25, P50, P75, P90）
-  allPeSorted = [...peValues].sort((a, b) => a - b);
-  peP10 = allPeSorted[Math.floor(allPeSorted.length * 0.1)];
-
-  // 初始化图表
-  initCharts();
+  initPeChart();
 }
 ```
 
@@ -454,7 +506,10 @@ async function loadData() {
 | 字段路径 | 用途 | 对应前端变量 |
 |---------|------|------------|
 | `json.data[].date` | 日期标签 | `dates` |
-| `json.data[].pe` | PE值 | `peValues` |
+| `json.data[].pe` | PE值（向后兼容，取自主板A） | `peValues` |
+| `json.data[].products` | 全量市场数据（各产品代码×各字段） | `allData`（暂存，后续扩展） |
+| `json.data[].products.01.pe_ratio` | 主板A市盈率 | 后续扩展可独立引用 |
+| `json.data[].products.02.turnover_rate` | 主板B换手率 | 后续扩展 |
 | `json.stats.current` | 当前PE | `currentPe` |
 | `json.stats.percentile` | 当前分位 | `currentPct` |
 | `json.stats.avg` | 历史均值 | `peAvg` |

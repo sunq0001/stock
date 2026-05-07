@@ -308,73 +308,103 @@ def get_market_pe():
 
 @app.route('/api/market/pe/history')
 def get_market_pe_history():
-    """获取完整历史数据 - 从InfluxDB读取主板A(01)的市盈率"""
+    """获取完整市场历史数据 - 按天返回所有产品类别(主板A/B/科创板/全部)的所有字段"""
+
+    # 产品代码说明（用于前端展示）
+    PRODUCT_CODES = {
+        '01': '主板A', '02': '主板B', '03': '科创板',
+        '11': '股票回购', '17': '全部'
+    }
+
     try:
         client = get_influxdb_client()
         if not client:
             return jsonify({"error": "无法连接InfluxDB"}), 500
-        
+
         query_api = client.query_api()
-        
-        # 查询全部历史数据，筛选PE相关字段
+
+        # 查询所有字段、所有产品代码
         query = '''
         from(bucket: "market_data")
           |> range(start: 0)
           |> filter(fn: (r) => r["_measurement"] == "sse_market")
-          |> filter(fn: (r) => r["_field"] == "pe" or r["_field"] == "pe_ratio")
           |> sort(columns: ["_time"])
         '''
-        
+
         tables = query_api.query(query)
-        
-        # 收集所有字段数据，按日期聚合
-        date_data = {}
+
+        # 按 (日期, product_code) 分组收集所有字段
+        product_data = {}       # (date, code) -> {field: value}
+        product_names = {}      # code -> name（冗余存储方便读取）
+
         for table in tables:
             for record in table.records:
                 time = record.get_time()
-                if hasattr(time, 'strftime'):
-                    date = time.strftime('%Y-%m-%d')
-                else:
-                    date = str(time)[:10]
-                
+                date = time.strftime('%Y-%m-%d') if hasattr(time, 'strftime') else str(time)[:10]
+
+                code = record.values.get('product_code', '')
+                name = record.values.get('product_name', '')
                 field = record.get_field()
                 value = record.get_value()
-                
-                if date not in date_data:
-                    date_data[date] = {'date': date}
-                date_data[date][field] = value
-        
-        # 转为列表并排序
-        kline = list(date_data.values())
+
+                if not code:
+                    continue
+                product_names[code] = name or PRODUCT_CODES.get(code, code)
+
+                key = (date, code)
+                if key not in product_data:
+                    product_data[key] = {}
+                product_data[key][field] = value
+
+        # 按日期聚合，每天包含所有 product_code 的数据
+        date_groups = {}
+        for (date, code), fields in product_data.items():
+            if date not in date_groups:
+                date_groups[date] = {'date': date, 'products': {}}
+            # 排除 trade_date（去重辅助字段，前端不需要）
+            clean_fields = {k: v for k, v in fields.items() if k != 'trade_date'}
+            date_groups[date]['products'][code] = {
+                'name': product_names.get(code, code),
+                **clean_fields
+            }
+
+        kline = list(date_groups.values())
         kline.sort(key=lambda x: x['date'])
-        
-        # 提取PE数据（字段可能是 pe 或 pe_ratio）
+
+        # 提取市盈率（向后兼容）：优先主板A(01)，其次全部(17)
+        def _get_pe(day_data):
+            products = day_data.get('products', {})
+            for pref in ['01', '17']:
+                if pref in products:
+                    val = products[pref].get('pe_ratio') or products[pref].get('pe')
+                    if val is not None and val != '-' and val != '':
+                        try:
+                            return float(val)
+                        except ValueError:
+                            pass
+            return None
+
         pe_values = []
         for k in kline:
-            # 优先使用 pe 字段，如果没有则使用 pe_ratio
-            pe = k.get('pe', k.get('pe_ratio', 0))
-            # 处理 '-' 或空值
-            if pe and pe != '-' and pe != '':
-                try:
-                    pe_value = float(pe)
-                    pe_values.append(pe_value)
-                    k['pe'] = pe_value  # 前端期望的字段名
-                except:
-                    pass
-        
+            pe = _get_pe(k)
+            if pe is not None:
+                pe_values.append(pe)
+                k['pe'] = pe  # 向后兼容
+
+        # 统计
         if pe_values:
             avg_pe = sum(pe_values) / len(pe_values)
             max_pe = max(pe_values)
             min_pe = min(pe_values)
-            latest_pe = pe_values[-1] if pe_values else 0
+            latest_pe = pe_values[-1]
             below_count = sum(1 for p in pe_values if p < latest_pe)
             percentile = round(below_count / len(pe_values) * 100, 1)
         else:
             avg_pe = max_pe = min_pe = latest_pe = 0
             percentile = 0
-        
+
         client.close()
-        
+
         return jsonify({
             "data": kline,
             "stats": {
@@ -387,8 +417,9 @@ def get_market_pe_history():
             },
             "data_source": "influxdb"
         })
+
     except Exception as e:
-        print(f"[ERROR] 获取历史数据失败: {e}")
+        print(f"[ERROR] 获取市场历史数据失败: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/search')

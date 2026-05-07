@@ -763,34 +763,37 @@ function initPeChart() {
 
 async function loadMarketPeData() {
   try {
-    const res = await fetch(`${API_BASE}/market/pe`);
+    const res = await fetch(`${API_BASE}/market/pe/history`);
     if (!res.ok) {
       console.log('[INFO] Market PE data not available yet');
       return;
     }
-    
+
     const json = await res.json();
     if (json.error || !json.data) {
       console.log('[INFO] No PE data available');
       return;
     }
-    
-    const dates = json.data.map(d => d.date);
-    const peValues = json.data.map(d => d.pe);
-    
+
+    // 当前只展示市盈率，但 data 中 products 包含所有类别(主板A/B/科创板/全部)的
+    // 市盈率、换手率、市值等完整字段，后续可直接扩展
+    const allData = json.data;  // 保留完整数据供后续扩展
+    const dates = allData.map(d => d.date);
+    const peValues = allData.map(d => d.pe);
+
     // 更新统计信息
     if (json.stats) {
       document.getElementById('peCurrent').textContent = json.stats.current ? json.stats.current.toFixed(2) + 'x' : '--';
       document.getElementById('pePercentile').textContent = json.stats.percentile ? json.stats.percentile.toFixed(1) + '%' : '--';
       document.getElementById('peAvg').textContent = json.stats.avg ? json.stats.avg.toFixed(2) + 'x' : '--';
     }
-    
+
     // 更新图表
     peChartInst.setOption({
       xAxis: { data: dates },
       series: [{ data: peValues }]
     });
-    
+
   } catch (e) {
     console.log('[INFO] Failed to load market PE data:', e.message);
   }
