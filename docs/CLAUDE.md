@@ -43,7 +43,7 @@
     html/market.html(前端)  nginx/default.conf  Dockerfile.web
     docker-compose.local.yml  docker-compose.production.yml
     stock_list.json  requirements.txt  README.md
-docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源 07踩坑
+docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源 07踩坑 08路线
 ```
 
 ## 禁止事项
@@ -58,6 +58,12 @@ docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源 07
 ## 已知问题
 
 个股K线和分红配股当前实时调腾讯API/akshare，未持久化。待迁移到 InfluxDB。
+
+## 开始工作前
+
+1. 先看 `docs/08-roadmap.md` 确定当前阶段
+2. 遇到问题先查 `docs/07-pitfalls.md`
+3. 不清楚结构看 `docs/01-architecture.md`
 
 ## 快速启动
 

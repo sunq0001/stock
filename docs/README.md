@@ -11,6 +11,7 @@ docs/
 ├── 05-database-schema.md      ← 数据库 Schema 设计（所有 Measurement、字段、采集策略）
 ├── 06-data-source.md          ← SSE数据源参考（爬虫字段对照）
 ├── 07-pitfalls.md             ← 踩坑记录（异常行为先查这里）
+├── 08-roadmap.md              ← 开发路线图（当前阶段、待办事项）
 ```
 
 ## 快速导航
