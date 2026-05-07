@@ -57,36 +57,9 @@
 }
 ```
 
-**`products.{code}` 字段说明**：
+**`products.{code}` 字段说明**见 `docs/05-database-schema.md`。
 
-| 字段名 | 中文说明 | 单位 |
-|--------|----------|------|
-| `name` | 产品名称 | - |
-| `pe_ratio` | 平均市盈率 | 倍 |
-| `pe_ratio_full` | 完整市盈率（仅历史API） | 倍 |
-| `listed_count` | 挂牌数 | 个 |
-| `market_cap` | 市价总值 | 亿元 |
-| `market_cap_full` | 完整市值（仅历史API） | 亿元 |
-| `float_market_cap` | 流通市值 | 亿元 |
-| `float_market_cap_full` | 完整流通市值（仅历史API） | 亿元 |
-| `trade_amount` | 成交金额 | 亿元 |
-| `trade_amount_full` | 完整成交金额（仅历史API） | 亿元 |
-| `trade_vol` | 成交量 | 亿股 |
-| `trade_vol_full` | 完整成交量（仅历史API） | 亿股 |
-| `turnover_rate` | 换手率 | % |
-| `turnover_rate_full` | 完整换手率（仅历史API） | % |
-| `float_turnover_rate` | 流通换手率 | % |
-| `float_turnover_rate_full` | 完整流通换手率（仅历史API） | % |
-
-**product_code 对照**：
-
-| code | 名称 |
-|------|------|
-| `01` | 主板A |
-| `02` | 主板B |
-| `03` | 科创板 |
-| `11` | 股票回购 |
-| `17` | 全部 |
+**product_code 对照**：`01`=主板A, `02`=主板B, `03`=科创板, `11`=股票回购, `17`=全部
 
 ### 2.2 当前市场概要
 
@@ -207,9 +180,7 @@
 
 ---
 
-## 四、系统状态
-
-### 4.1 健康检查
+## 四、健康检查
 
 **接口**：`GET /api/health`
 
@@ -224,78 +195,6 @@
 
 ---
 
-## 五、InfluxDB Schema
-
-### 5.1 连接信息
-
-| 参数 | 值 |
-|------|-----|
-| URL | http://localhost:8086（容器内） |
-| Token | my-super-secret-token |
-| Org | stock |
-| Bucket | market_data |
-
-### 5.2 Measurement: `sse_market`
-
-存储大盘市场概览数据（各品类市盈率、换手率、市值等）。
-
-**Tags**：
-
-| 标签 | 说明 | 示例 |
-|------|------|------|
-| `product_code` | 产品代码 | `01`, `02`, `03`, `11`, `17` |
-| `product_name` | 产品名称 | `主板A`, `主板B`, `科创板` |
-
-**Fields**：见上文 2.1 节 `products.{code}` 字段列表。
-
-**时间戳**：交易日日期，格式 `YYYY-MM-DD`
-
-### 5.3 Fluent Query 示例
-
-```flux
-# 查询所有大盘数据
-from(bucket: "market_data")
-  |> range(start: 0)
-  |> filter(fn: (r) => r["_measurement"] == "sse_market")
-  |> sort(columns: ["_time"])
-```
-
----
-
-## 六、前后端数据交互
-
-### 6.1 加载大盘图表
-
-```
-前端 fetch(/api/market/pe/history)
-    → Nginx 代理到 Flask:5000
-    → Flask 查询 InfluxDB
-    → 返回 JSON → 前端渲染 ECharts
-```
-
-### 6.2 加载个股K线 + 分红 + 配股
-
-```
-前端并发请求:
-  fetch(/api/stock/<code>)
-  fetch(/api/dividend/<code>)
-  fetch(/api/allotment/<code>)
-
-→ 后端分别处理 → 返回 JSON
-→ 前端合并渲染 K线图 + 分红标记 + 收益计算
-```
-
-### 6.3 前端依赖的字段
-
-| 字段路径 | 用途 |
-|---------|------|
-| `json.data[].date` | PE图日期标签 |
-| `json.data[].pe` | PE值（取自主板A，向后兼容） |
-| `json.data[].products` | 全量市场数据（后续扩展） |
-| `json.stats.current` | 当前PE |
-| `json.stats.percentile` | 历史分位 |
-| `json.stats.avg` | 历史均值 |
-| `json.name` | 个股名称 |
-| `json.kline[].日期/开盘/收盘/最高/最低/成交量` | K线数据 |
-| `json.dividends[].ex_date/cash/bonus/transfer` | 分红数据 |
-| `json.allotments[].ex_date/ratio/price` | 配股数据 |
+> **数据库 Schema**（Measurement 定义、字段列表、采集策略）详见 `docs/05-database-schema.md`
+>
+> **前后端交互流程**详见 `docs/01-architecture.md`

@@ -138,28 +138,13 @@ stock-project-local/
 - 分红配股用 akshare 实时查询，未持久化
 - 全量历史采集（4000只股票×20年）尚未实现，数据迁移待完成
 
-## 服务器信息
-
-| 项目 | 值 |
-|------|-----|
-| IP | 101.43.3.247 |
-| 用户 | root |
-| 项目路径 | /var/www/stock |
-| nginx容器 | stock-nginx (bridge, 172.18.0.4) |
-| Flask容器 | sse-pe-service (bridge, 172.18.0.2) |
-
-## 开发速查
+## 快速启动
 
 ```bash
-# 启动本地服务
-$env:INFLUXDB_URL="http://localhost:18086"
-$env:INFLUXDB_TOKEN="my-super-secret-token"
-$env:INFLUXDB_ORG="stock"
-$env:INFLUXDB_BUCKET="market_data"
-$env:PORT="5000"
+$env:INFLUXDB_URL="http://localhost:18086"; $env:INFLUXDB_TOKEN="my-super-secret-token"
+$env:INFLUXDB_ORG="stock"; $env:INFLUXDB_BUCKET="market_data"; $env:PORT="5000"
 python pe_data_service_influxdb.py
-
-# 访问
-# 前端: http://localhost:18082/
-# API:  http://localhost:18082/api/market/pe/history
+# → http://localhost:18082/
 ```
+
+详情见 `docs/02-development.md`、`docs/03-deployment.md`。
