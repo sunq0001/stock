@@ -1,8 +1,8 @@
-# 上证交易所( SSE )市场数据 API 文档
+# 上交所(SSE)市场数据源说明
+
+> 本文档记录 SSE 官网原始数据接口，供爬虫 `sse_market_data_crawler.py` 使用。**不是后端 API 文档。**
 
 ## 一、概述
-
-本文档记录上证交易所官网市场数据 API 的使用方法、数据范围、以及新旧网站的 API 差异。
 
 数据来源：
 - **旧网站（历史API）**：1999年 ~ 2021-12-24
@@ -12,9 +12,7 @@
 
 ---
 
-## 二、API 端点
-
-### 2.1 历史 API（旧网站）
+## 二、历史数据源（旧网站）
 
 **适用日期**：1999年 ~ 2021-12-24
 
@@ -69,7 +67,7 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_DAYCJGK_C&
 
 ---
 
-### 2.2 新版 API（新网站）
+## 三、新版数据源（新网站）
 
 **适用日期**：2021-12-25 ~ 至今
 
@@ -118,7 +116,7 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRO
 
 ---
 
-## 三、数据时间范围
+## 四、数据时间范围
 
 ```
 1999-01-01 ─────────────────── 2021-12-24 ─────────────────── 2026-04-29
@@ -127,14 +125,14 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRO
                                       └──── 新版API（新网站） ─────────┘
 ```
 
-| API | 适用日期 | 分类数量 | 特殊说明 |
-|-----|----------|----------|----------|
-| 历史API | 1999年 ~ 2021-12-24 | 6个分类 | 包含完整的所有字段 |
-| 新版API | 2021-12-25 ~ 至今 | 5个分类 | 不包含TYPE=40/TYPE=12 |
+| 数据源 | 适用日期 | 分类数量 | 特殊说明 |
+|--------|----------|----------|----------|
+| 历史数据源 | 1999年 ~ 2021-12-24 | 6个分类 | 包含完整的所有字段 |
+| 新版数据源 | 2021-12-25 ~ 至今 | 5个分类 | 不包含TYPE=40/TYPE=12 |
 
 **产品类型代码对照表**：
 
-| 产品名称 | 历史API代码 | 新版API代码 |
+| 产品名称 | 历史数据源代码 | 新版数据源代码 |
 |----------|------------|------------|
 | 主板A股 | 1, 12, 40 | 01 |
 | 主板B股 | 2 | 02 |
@@ -144,32 +142,18 @@ https://query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_SJ_GPSJ_CJGK_MRGK_C&PRO
 
 ---
 
-## 四、爬虫使用
-
-### 4.1 基本用法
-
-```bash
-# 查询单日数据
-python sse_market_data_crawler.py --date 2026-04-28
-
-# 查询日期范围
-python sse_market_data_crawler.py --start 2021-12-20 --end 2021-12-26
-```
-
-### 4.2 爬虫自动选择逻辑
+## 五、爬虫自动选择逻辑
 
 ```python
 def get_market_data(date_str):
     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-    new_api_start = datetime(2021, 12, 25)  # 新网站启用日期
+    new_api_start = datetime(2021, 12, 25)
 
     if date_obj >= new_api_start:
-        # 使用新版API (2021-12-25 及之后)
         raw_data = fetch_market_data_by_new_api(date_str)
         if raw_data:
             return parse_new_api_data(raw_data)
 
-    # 使用历史API（支持1999年至2021-12-24）
     raw_data = fetch_market_data_by_history_api(date_str)
     if raw_data:
         return parse_history_data(raw_data, date_str)
@@ -179,9 +163,9 @@ def get_market_data(date_str):
 
 ---
 
-## 五、新旧API字段对比
+## 六、新旧数据源字段对比
 
-| 指标 | 历史API字段 | 新版API字段 | 单位 |
+| 指标 | 历史数据源字段 | 新版数据源字段 | 单位 |
 |------|------------|------------|------|
 | 挂牌数 | TX_NUM | LIST_NUM | 个 |
 | 市盈率 | AVG_PROFIT_RATE | AVG_PE_RATE | 倍 |
@@ -197,43 +181,27 @@ def get_market_data(date_str):
 
 ---
 
-## 六、常见问题
+## 七、常见问题
 
-### 6.1 为什么 2021-12-24 的数据新旧API不同？
+### 7.1 为什么 2021-12-24 的新旧数据不同？
 
-2021-12-24 是两个 API 的**分界点**：
-- 历史API在2021-12-24有完整数据（6个分类）
-- 新版API在2021-12-24没有数据（从2021-12-25开始才有）
+2021-12-24 是分界点：历史数据源有完整6个分类，新版数据源从12-25才开始有数据。爬虫会自动判断。
 
-**解决方案**：爬虫会自动判断，2021-12-24及之前的日期使用历史API。
-
-### 6.2 TYPE=40 和 TYPE=12 有什么区别？
-
-| TYPE | 说明 |
-|------|------|
-| 40 | 完整的市场汇总数据，**推荐使用** |
-| 12 | 同样是汇总数据，与TYPE=40数据相同 |
+### 7.2 TYPE=40 和 TYPE=12 有什么区别？
 
 两者数据完全一致，使用时只取 TYPE=40 即可。
 
-### 6.3 TX_NUM 字段的含义？
+### 7.3 TX_NUM 字段的含义？
 
-TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量），而不是成交笔数。
+实际表示**挂牌数**（上市股票数量），不是成交笔数。
 
-### 6.4 股票回购(TYPE=43)数据特点
+### 7.4 股票回购(TYPE=43)数据特点
 
-| 字段 | 值 |
-|------|-----|
-| 市盈率 | 0 |
-| 市价总值 | - |
-| 流通市值 | - |
-| 换手率 | 0 |
-
-股票回购是特殊分类，部分字段为空或为0是正常的。
+市盈率为0、市价总值和流通市值为"-"、换手率为0，这是正常的。
 
 ---
 
-## 七、参考链接
+## 八、参考链接
 
 - 新市场数据页面：https://www.sse.com.cn/market/stockdata/overview/day/
 - 旧市场数据页面：https://www.sse.com.cn/market/stockdata/overview/day/index_his.shtml

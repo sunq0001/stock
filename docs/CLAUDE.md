@@ -97,7 +97,7 @@ stock-project-local/
     ├── 03-deployment.md          # 部署指南
     ├── 04-api-reference.md       # API 接口文档
     ├── 05-database-schema.md     # 数据库 Schema 设计
-    └── SSE_API_DOC.md            # SSE原始API参考
+    └── SSE_DATA_SOURCE.md            # SSE数据源说明（爬虫参考）
 ```
 
 ## API 端点速查
