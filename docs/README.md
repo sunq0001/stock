@@ -10,6 +10,7 @@ docs/
 ├── 04-api-reference.md        ← API接口文档（后端所有端点、返回格式）
 ├── 05-database-schema.md      ← 数据库 Schema 设计（所有 Measurement、字段、采集策略）
 ├── 06-data-source.md          ← SSE数据源参考（爬虫字段对照）
+├── 07-pitfalls.md             ← 踩坑记录（异常行为先查这里）
 ```
 
 ## 快速导航
@@ -23,3 +24,4 @@ docs/
 | 查API接口和返回格式 | `04-api-reference.md` |
 | 查数据库结构和字段 | `05-database-schema.md` |
 | 查SSE数据源字段对照 | `06-data-source.md` |
+| 遇到bug先查这里 | `07-pitfalls.md` |

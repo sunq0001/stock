@@ -43,7 +43,7 @@
     html/market.html(前端)  nginx/default.conf  Dockerfile.web
     docker-compose.local.yml  docker-compose.production.yml
     stock_list.json  requirements.txt  README.md
-docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源
+docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源 07踩坑
 ```
 
 ## 禁止事项
