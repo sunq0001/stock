@@ -1,5 +1,7 @@
 # 股票数据可视化项目
 
+> 位置：`docs/CLAUDE.md`（AI 项目说明书，首次对话自动加载了解项目）
+
 ## 项目概述
 
 上证交易所市场数据可视化平台。爬虫采集大盘指标、个股K线、分红配股数据存入 InfluxDB，Flask API 查询后通过 ECharts 前端展示。
@@ -53,7 +55,7 @@
 | Flask API | 5000 | 18082 | 8082 |
 | InfluxDB | 8086 | 18086 | 8086 |
 
-**不要在代码或配置中硬编码宿主端口。** 容器内统一用端口名（`web:5000`、`influxdb:8086`）通信。
+**不要在代码或配置中硬编码宿主端口。** 容器内统一用服务名（`web:5000`、`influxdb:8086`）通信。
 
 ### 5. 本地 ↔ 服务器一致性
 
@@ -81,20 +83,21 @@ stock-project-local/
 ├── stock_list.json               # 股票代码清单
 ├── requirements.txt              # Python 依赖
 ├── deploy.py                     # 简易部署脚本
+├── README.md                     # 项目入口 README（指向 docs/）
 │
 ├── ansible/
 │   ├── deploy.yml                # Ansible 部署剧本
 │   └── ansible.cfg
 │
-├── docs/                         # 项目文档
-│   ├── 01-architecture.md        # 系统架构
-│   ├── 02-development.md         # 本地开发
-│   ├── 03-deployment.md          # 部署指南
-│   ├── 04-api-reference.md       # API 接口文档
-│   ├── SSE_API_DOC.md            # SSE原始API参考
-│   └── README.md                 # 文档目录
-│
-└── CLAUDE.md                     # 本文档
+└── docs/                         # 项目文档
+    ├── README.md                 # 文档目录
+    ├── CLAUDE.md                 # 本文档：AI 项目说明书
+    ├── 01-architecture.md        # 系统架构
+    ├── 02-development.md         # 本地开发
+    ├── 03-deployment.md          # 部署指南
+    ├── 04-api-reference.md       # API 接口文档
+    ├── 05-database-schema.md     # 数据库 Schema 设计
+    └── SSE_API_DOC.md            # SSE原始API参考
 ```
 
 ## API 端点速查
@@ -118,7 +121,7 @@ stock-project-local/
 - 修改后端后直接 `python pe_data_service_influxdb.py` 验证，再 build Docker
 - 前端改完直接刷新浏览器（纯静态，修改即生效）
 - 所有数据操作走 InfluxDB Flux 查询
-- 写文档同步更新 `docs/` 和 `CLAUDE.md`
+- 写文档同步更新 `docs/`
 
 ### ❌ 禁止做的
 
