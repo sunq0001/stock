@@ -9,7 +9,7 @@ docs/
 ├── 03-deployment.md           ← 部署指南（本地Docker、服务器部署、Ansible、数据同步）
 ├── 04-api-reference.md        ← API接口文档（后端所有端点、返回格式）
 ├── 05-database-schema.md      ← 数据库 Schema 设计（所有 Measurement、字段、采集策略）
-└── SSE_DATA_SOURCE.md         ← SSE官网原始数据源说明（爬虫参考）
+├── 06-data-source.md          ← SSE数据源参考（爬虫字段对照）
 ```
 
 ## 快速导航
@@ -22,4 +22,4 @@ docs/
 | 部署到服务器 | `03-deployment.md` |
 | 查API接口和返回格式 | `04-api-reference.md` |
 | 查数据库结构和字段 | `05-database-schema.md` |
-| 查SSE数据源字段对照 | `SSE_DATA_SOURCE.md` |
+| 查SSE数据源字段对照 | `06-data-source.md` |
