@@ -18,6 +18,23 @@ import pandas as pd
 app = Flask(__name__)
 CORS(app)
 
+# 全局替换NaN为null（Flask jsonify默认会把NaN序列化为无效的NaN字符串）
+import math as _math
+def _clean_nan(obj):
+    if isinstance(obj, float) and _math.isnan(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: _clean_nan(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean_nan(v) for v in obj]
+    return obj
+
+_orig_jsonify = jsonify
+def _safe_jsonify(*args, **kwargs):
+    return _orig_jsonify(*[_clean_nan(a) if isinstance(a, (dict, list)) else a for a in args], **{k: _clean_nan(v) if isinstance(v, (dict, list)) else v for k, v in kwargs.items()})
+import flask
+flask.jsonify = _safe_jsonify
+
 # 配置
 DATA_SOURCE = os.environ.get('DATA_SOURCE', 'influxdb')
 INFLUXDB_URL = os.environ.get('INFLUXDB_URL', 'http://localhost:18086')
@@ -424,6 +441,12 @@ def _fmt_date(val):
     s = str(val).strip()
     return s[:10] if len(s) >= 10 else s
 
+def _safe_str(val):
+    """安全转字符串，处理NaN"""
+    if val is None or (isinstance(val, float) and math.isnan(val)):
+        return ''
+    return str(val).strip()
+
 def _safe_float(val):
     """安全转float，处理NaN"""
     if val is None or (isinstance(val, float) and math.isnan(val)):
@@ -454,8 +477,8 @@ def get_dividend_data(code):
                 'bonus': bonus / 10.0 if bonus else 0.0,
                 'transfer': transfer / 10.0 if transfer else 0.0,
                 'rights': 0,
-                'desc': row.get('实施方案分红说明', ''),
-                'report_time': row.get('报告时间', '')
+                'desc': _safe_str(row.get('实施方案分红说明')),
+                'report_time': _safe_str(row.get('报告时间'))
             })
         return jsonify({"dividends": dividends})
     except ImportError:
