@@ -979,12 +979,12 @@ async function loadStock(code) {
     allLoaded = kJson.all_loaded || false;
 
     // 更新信息栏
-    const lastClose = klineData.closes[klineData.closes.length - 1];
+    const lastClose = klineData.closes.length > 0 ? klineData.closes[klineData.closes.length - 1] : null;
     setInfo(`
       <div class="stock-bar">
         <span class="s-code">${code}</span>
         <span class="s-name">${kJson.name || ''}</span>
-        <span style="margin-left:auto;color:#8b949e;font-size:13px">最新：<b style="color:#f0f6fc">${lastClose.toFixed(2)}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">← 拖动加载更多历史</span></span>
+        <span style="margin-left:auto;color:#8b949e;font-size:13px">最新：<b style="color:#f0f6fc">${lastClose ? lastClose.toFixed(2) : '--'}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">← 拖动加载更多历史</span></span>
       </div>
     `);
 
@@ -1136,7 +1136,8 @@ function updateBarHint(text) {
   // 更新交易日的总计数
   const countSpan = bar.querySelector('span[style*="margin-left"]');
   if (countSpan) {
-    countSpan.innerHTML = `最新：<b style="color:#f0f6fc">${klineData.closes[klineData.closes.length - 1].toFixed(2)}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">${text}</span>`;
+    const lastClose = klineData.closes.length > 0 ? klineData.closes[klineData.closes.length - 1] : null;
+    countSpan.innerHTML = `最新：<b style="color:#f0f6fc">${lastClose ? lastClose.toFixed(2) : '--'}</b> 元 &nbsp;·&nbsp; 共 ${klineData.dates.length} 个交易日 <span style="color:#58a6ff;font-size:11px">${text}</span>`;
   }
 }
 

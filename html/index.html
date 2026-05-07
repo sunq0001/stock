@@ -552,7 +552,8 @@ let currentPct = 0;
 // 从API加载数据
 async function loadData() {
   try {
-    const res = await fetch('/api/market/pe');
+    // 使用 /api/market/pe/history 获取完整历史数据
+    const res = await fetch('/api/market/pe/history');
     if (!res.ok) throw new Error('API请求失败');
     const json = await res.json();
     
@@ -561,21 +562,27 @@ async function loadData() {
       return false;
     }
     
-    // 处理数据
+    // 处理数据 - 从历史数据中提取
     dates = json.data.map(d => d.date);
-    peValues = json.data.map(d => d.pe);
+    peValues = json.data.map(d => d.pe || 0);
     
-    // 计算统计数据
-    allPeSorted = [...peValues].sort((a, b) => a - b);
-    peAvg = json.stats?.avg || (peValues.reduce((a, b) => a + b, 0) / peValues.length);
-    currentPe = json.stats?.current || peValues[peValues.length - 1];
+    // 计算统计数据（以后端返回的stats为主，前端计算为备选）
+    if (json.stats) {
+      peAvg = json.stats.avg || 0;
+      currentPe = json.stats.current || peValues[peValues.length - 1] || 0;
+    } else {
+      allPeSorted = [...peValues].sort((a, b) => a - b);
+      peAvg = peValues.reduce((a, b) => a + b, 0) / peValues.length;
+      currentPe = peValues[peValues.length - 1] || 0;
+    }
     
     // 计算分位数
-    peP10 = allPeSorted[Math.floor(allPeSorted.length * 0.1)];
-    peP25 = allPeSorted[Math.floor(allPeSorted.length * 0.25)];
-    peP50 = allPeSorted[Math.floor(allPeSorted.length * 0.5)];
-    peP75 = allPeSorted[Math.floor(allPeSorted.length * 0.75)];
-    peP90 = allPeSorted[Math.floor(allPeSorted.length * 0.9)];
+    allPeSorted = [...peValues].sort((a, b) => a - b);
+    peP10 = allPeSorted[Math.floor(allPeSorted.length * 0.1)] || 0;
+    peP25 = allPeSorted[Math.floor(allPeSorted.length * 0.25)] || 0;
+    peP50 = allPeSorted[Math.floor(allPeSorted.length * 0.5)] || 0;
+    peP75 = allPeSorted[Math.floor(allPeSorted.length * 0.75)] || 0;
+    peP90 = allPeSorted[Math.floor(allPeSorted.length * 0.9)] || 0;
     
     // 计算当前分位
     currentPct = calcPercentile(currentPe);
@@ -595,26 +602,34 @@ async function loadData() {
 
 function updateStats(json) {
   // 更新顶部统计栏
-  const stats = json.stats;
+  const stats = json.stats || {};
   if (!stats) return;
   
+  // 使用后端返回的统计数据，否则使用前端计算的值
+  const displayPe = stats.current ?? currentPe;
+  const displayPct = stats.percentile ?? currentPct;
+  const displayAvg = stats.avg ?? peAvg;
+  const displayMax = stats.max ?? Math.max(...peValues);
+  const displayMin = stats.min ?? Math.min(...peValues.filter(v => v > 0));
+  const displayCount = stats.count ?? peValues.length;
+  
   // 更新当前PE
-  document.querySelector('.stat-value.current').textContent = stats.current.toFixed(2) + 'x';
+  document.querySelector('.stat-value.current').textContent = displayPe.toFixed(2) + 'x';
   document.querySelector('.stat-item .stat-sub').textContent = dates[dates.length - 1];
   
   // 更新分位
-  document.querySelectorAll('.stat-value')[1].textContent = stats.percentile.toFixed(1) + '%';
-  document.querySelectorAll('.stat-sub')[1].textContent = `处于历史P${Math.round(stats.percentile)}分位`;
+  document.querySelectorAll('.stat-value')[1].textContent = displayPct.toFixed(1) + '%';
+  document.querySelectorAll('.stat-sub')[1].textContent = `处于历史P${Math.round(displayPct)}分位`;
   
   // 更新均值
-  document.querySelector('.stat-value.avg').textContent = stats.avg.toFixed(2) + 'x';
+  document.querySelector('.stat-value.avg').textContent = displayAvg.toFixed(2) + 'x';
   
   // 更新最高/最低
-  document.querySelector('.stat-value.high').textContent = stats.max.toFixed(2) + 'x';
-  document.querySelector('.stat-value.low').textContent = stats.min.toFixed(2) + 'x';
+  document.querySelector('.stat-value.high').textContent = displayMax.toFixed(2) + 'x';
+  document.querySelector('.stat-value.low').textContent = displayMin.toFixed(2) + 'x';
   
   // 更新数据点数
-  document.querySelectorAll('.stat-value')[5].textContent = stats.count;
+  document.querySelectorAll('.stat-value')[5].textContent = displayCount;
   
   // 更新数据跨度
   const startYear = dates[0].substring(0, 4);
@@ -630,8 +645,8 @@ function updateStats(json) {
   document.getElementById('refP90').textContent = peP90.toFixed(2) + 'x';
   
   // 更新底部说明
-  const belowPct = (100 - stats.percentile).toFixed(0);
-  document.getElementById('currentPeDisplay').innerHTML = `当前 <span style="color:#58a6ff;font-weight:700">${stats.current.toFixed(2)}x</span> 处于 <span style="color:#58a6ff;font-weight:700">P${Math.round(stats.percentile)}</span>，低于 <span style="color:#3fb950">${belowPct}%</span> 的历史时点`;
+  const belowPct = (100 - displayPct).toFixed(0);
+  document.getElementById('currentPeDisplay').innerHTML = `当前 <span style="color:#58a6ff;font-weight:700">${displayPe.toFixed(2)}x</span> 处于 <span style="color:#58a6ff;font-weight:700">P${Math.round(displayPct)}</span>，低于 <span style="color:#3fb950">${belowPct}%</span> 的历史时点`;
   
   // 更新zone-labels中的分位数
   document.getElementById('zoneLabelsPct').innerHTML = `<span style="color:#58a6ff">P10=${peP10.toFixed(2)}x</span> · <span style="color:#3fb950">P25=${peP25.toFixed(2)}x</span> · <span style="color:#e3b341">P50=${peP50.toFixed(2)}x</span> · <span style="color:#f0883e">P75=${peP75.toFixed(2)}x</span> · <span style="color:#f85149">P90=${peP90.toFixed(2)}x</span>`;

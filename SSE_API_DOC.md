@@ -241,9 +241,233 @@ TX_NUM 在返回数据中实际表示的是**挂牌数**（上市股票数量）
 
 ---
 
-## 八、更新日志
+## 八、系统架构与部署
+
+### 8.1 整体架构
+
+```
+┌──────────┐      ┌──────────┐      ┌─────────────┐      ┌──────────┐
+│  爬虫     │ ──→  │ InfluxDB  │ ──→  │  Web服务    │ ──→  │  前端    │
+│ (Docker)  │ 写入 │ 时序数据库│ 查询 │ Flask API   │ JSON  │ ECharts  │
+└──────────┘      └──────────┘      └─────────────┘      └──────────┘
+                                          ↑
+                                    ┌─────┴──────┐
+                                    │  Nginx代理   │
+                                    │ (反向代理)   │
+                                    └────────────┘
+```
+
+**数据流向**：
+1. **爬虫** (sse_market_data_crawler.py) 从上交所官网爬取数据
+2. 爬虫将数据写入 **InfluxDB**（时序数据库）
+3. **Web服务** (pe_data_service_influxdb.py) 提供 REST API，从 InfluxDB 查询数据
+4. **Nginx** 将 `/api/` 请求代理到 Web 服务
+5. **前端** (index.html) 通过 `fetch('/api/...')` 调用 API 获取数据并渲染图表
+
+### 8.2 端口配置（固定）
+
+**本地开发（docker-compose.local.yml）**：
+
+| 服务 | 宿主机端口 | 容器内端口 | 说明 |
+|------|-----------|-----------|------|
+| nginx | **18080** | 80 | 前端页面入口 |
+| Web API | **18082** | 5000 | 后端API（Flask） |
+| InfluxDB | **18086** | 8086 | 时序数据库 |
+
+**访问方式**：
+- 前端页面：`http://localhost:18080`
+- API直连：`http://localhost:18082/api/market/pe/history`
+- InfluxDB管理界面：`http://localhost:18086`（Token: `my-super-secret-token`）
+
+### 8.3 InfluxDB Schema
+
+**Bucket**：`market_data`
+
+**Measurement**：`sse_market`
+
+**Tags**：
+
+| 标签名 | 说明 | 示例值 |
+|--------|------|--------|
+| `product_code` | 产品代码 | `01`（主板A）, `02`（主板B）, `03`（科创板）, `11`（股票回购）, `17`（全部）|
+| `product_name` | 产品名称 | `主板A`, `主板B`, `科创板` |
+
+**Fields**（爬虫写入的原始字段）：
+
+| 字段名 | 类型 | 说明 | 单位 |
+|--------|------|------|------|
+| `trade_date` | string | 交易日（用于去重） | YYYY-MM-DD |
+| `pe_ratio` | float | 平均市盈率 | 倍 |
+| `pe_ratio_full` | float | 完整市盈率（仅历史API） | 倍 |
+| `listed_count` | float | 挂牌数（上市股票数） | 个 |
+| `market_cap` | float | 市价总值 | 亿元 |
+| `market_cap_full` | float | 完整市值（仅历史API） | 亿元 |
+| `float_market_cap` | float | 流通市值 | 亿元 |
+| `float_market_cap_full` | float | 完整流通市值（仅历史API） | 亿元 |
+| `trade_amount` | float | 成交金额 | 亿元 |
+| `trade_amount_full` | float | 完整成交金额（仅历史API） | 亿元 |
+| `trade_vol` | float | 成交量 | 亿股 |
+| `trade_vol_full` | float | 完整成交量（仅历史API） | 亿股 |
+| `turnover_rate` | float | 换手率 | % |
+| `turnover_rate_full` | float | 完整换手率（仅历史API） | % |
+| `float_turnover_rate` | float | 流通换手率 | % |
+| `float_turnover_rate_full` | float | 完整流通换手率（仅历史API） | % |
+
+**时间戳**：每个数据点的日期（交易日），格式为 YYYY-MM-DD
+
+---
+
+## 九、后端 API 接口
+
+### 9.1 PE历史数据
+
+**接口**：`GET /api/market/pe/history`
+
+**说明**：获取上证主板A股历史市盈率数据，从InfluxDB查询并聚合。
+
+**查询逻辑**（pe_data_service_influxdb.py 第300-306行）：
+```flux
+from(bucket: "market_data")
+  |> range(start: 0)                    // 全部历史数据
+  |> filter(fn: (r) => r._measurement == "sse_market")
+  |> filter(fn: (r) => r._field == "pe" or r._field == "pe_ratio")  // PE相关字段
+  |> sort(columns: ["_time"])
+```
+
+**返回格式**：
+```json
+{
+  "data": [
+    {"date": "2025-05-06", "pe": 13.56, "pe_ratio": 13.56},
+    {"date": "2025-05-07", "pe": 13.68, "pe_ratio": 13.68},
+    ...
+  ],
+  "stats": {
+    "current": 16.97,       // 最新PE值
+    "percentile": 92.6,     // 历史分位（%）
+    "avg": 15.67,           // 历史均值
+    "max": 17.21,           // 历史最高
+    "min": 13.56,           // 历史最低
+    "count": 242            // 数据点数量
+  },
+  "data_source": "influxdb"
+}
+```
+
+### 9.2 当前PE数据
+
+**接口**：`GET /api/market/pe`
+
+**说明**：获取当前PE及历史统计摘要（最近365天）。
+
+### 9.3 股票搜索
+
+**接口**：`GET /api/search?q=<查询词>`
+
+**说明**：按股票代码或名称搜索，返回匹配的股票列表。
+
+**返回示例**：
+```json
+[
+  {"code": "000001", "name": "平安银行"},
+  {"code": "000002", "name": "万科A"}
+]
+```
+
+### 9.4 个股K线
+
+**接口**：`GET /api/stock/<code>`
+
+**说明**：获取个股历史K线数据（180天），数据来源腾讯API。
+
+### 9.5 个股实时行情
+
+**接口**：`GET /api/stock/<code>/realtime`
+
+**说明**：获取个股实时行情数据，数据来源腾讯API。
+
+### 9.6 健康检查
+
+**接口**：`GET /api/health`
+
+**返回示例**：
+```json
+{
+  "status": "healthy",
+  "data_source": "influxdb",
+  "timestamp": "2026-05-03T10:00:00"
+}
+```
+
+---
+
+## 十、前端数据加载
+
+### 10.1 数据获取方式
+
+前端（html/index.html）不直接连接数据库，而是通过调用后端 API 获取数据。
+
+**核心代码**（index.html 第553-601行）：
+```javascript
+async function loadData() {
+  const res = await fetch('/api/market/pe/history');  // 调用后端API
+  const json = await res.json();
+
+  // 提取日期和PE值
+  dates = json.data.map(d => d.date);
+  peValues = json.data.map(d => d.pe || 0);
+
+  // 使用后端返回的统计数据
+  if (json.stats) {
+    peAvg = json.stats.avg || 0;
+    currentPe = json.stats.current || 0;
+  }
+
+  // 计算分位数（P10, P25, P50, P75, P90）
+  allPeSorted = [...peValues].sort((a, b) => a - b);
+  peP10 = allPeSorted[Math.floor(allPeSorted.length * 0.1)];
+
+  // 初始化图表
+  initCharts();
+}
+```
+
+### 10.2 请求流程
+
+```
+浏览器: fetch('/api/market/pe/history')
+             │
+             ▼
+   Nginx (localhost:18080)  →  代理到 http://web:5000/api/market/pe/history
+             │
+             ▼
+   Flask Web服务  →  Flux查询 →  InfluxDB
+             │
+             ▼
+   JSON响应  →  前端渲染ECharts图表
+```
+
+### 10.3 前端依赖的API返回值字段
+
+前端使用了以下 API 返回字段：
+
+| 字段路径 | 用途 | 对应前端变量 |
+|---------|------|------------|
+| `json.data[].date` | 日期标签 | `dates` |
+| `json.data[].pe` | PE值 | `peValues` |
+| `json.stats.current` | 当前PE | `currentPe` |
+| `json.stats.percentile` | 当前分位 | `currentPct` |
+| `json.stats.avg` | 历史均值 | `peAvg` |
+| `json.stats.max` | 历史最高 | 显示在统计栏 |
+| `json.stats.min` | 历史最低 | 显示在统计栏 |
+| `json.stats.count` | 数据点数量 | 显示在统计栏 |
+
+---
+
+## 十一、更新日志
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-05-03 | v2.0 | 新增系统架构、InfluxDB Schema、后端API文档、前端数据加载说明 |
 | 2026-04-29 | v1.1 | 修正API分界日期为2021-12-25 |
 | 2026-04-28 | v1.0 | 初版文档创建 |

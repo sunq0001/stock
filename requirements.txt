@@ -2,10 +2,9 @@
 flask>=2.0.0
 flask-cors>=3.0.0
 requests>=2.25.0
-# sqlite3>=2.6.0  # Python标准库，这里只是标注
+influxdb-client>=1.30.0
+pandas>=1.3.0
+akshare>=1.15.0
 
-# neoData查询需要
-# requests已经在上面
-
-# 开发依赖（可选）
+# 开发依赖
 python-dotenv>=0.19.0

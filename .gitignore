@@ -17,11 +17,19 @@ Thumbs.db
 .idea/
 .vscode/
 
-# 测试/临时脚本（可选，可按需取消注释）
-# test_*.py
-# check_*.py
-# analyze_*.py
+# 测试/临时脚本
+test_*.py
+check_*.py
+analyze_*.py
 
-# 敏感文件（token等）
-# neodata_token.txt
-# .env
+# 敏感文件
+.env
+neodata_token.txt
+
+# 临时文件
+api_result.json
+*_result.json
+
+# 旧数据文件（数据已迁移到InfluxDB）
+*.db
+html/data/
