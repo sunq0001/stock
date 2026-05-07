@@ -1,5 +1,7 @@
 # Ansible自动化部署指南
 
+> 完整部署文档：`docs/03-deployment.md`
+
 ## 安装Ansible
 
 ### Windows (通过pip)
