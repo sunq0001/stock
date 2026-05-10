@@ -57,13 +57,17 @@ docs: CLAUDE.md(本文) 01架构 02开发 03部署 04API 05Schema 06数据源 07
 
 ## 已知问题
 
-个股K线和分红配股当前实时调腾讯API/akshare，未持久化。待迁移到 InfluxDB。
+个股K线和分红配股已写入InfluxDB（被动缓存），但API仍优先调外部API，未从库读。待阶段五迁移。
 
 ## 开始工作前
 
 1. 先看 `docs/08-roadmap.md` 确定当前阶段
 2. 遇到问题先查 `docs/07-pitfalls.md`
 3. 不清楚结构看 `docs/01-architecture.md`
+
+## 工作完成后
+
+- **代码改完，同步更新相关文档。** 改Schema → 更新 `05-database-schema.md`。改API → 更新 `04-api-reference.md`。改采集逻辑 → 更新 `06-data-source.md`。加新功能 → 更新 `08-roadmap.md`。踩坑了 → 记到 `07-pitfalls.md`。**不要等用户提醒。**
 
 ## 快速启动
 

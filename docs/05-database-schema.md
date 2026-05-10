@@ -84,85 +84,119 @@ from(bucket: "market_data")
 
 ---
 
-## 三、规划中的 Measurement
+## 三、Measurement: `stock_kline` ✅ 已实现
 
-以下数据尚未迁移到 InfluxDB，当前由 API 实时调用外部数据源。后续应统一入库。
+存储个股日K线（前复权），API查询时自动写入。
 
-### Measurement: `stock_kline`
+**Tags**：
 
-存储个股日K线（前复权）。
-
-| 标签 | 说明 |
-|------|------|
-| `code` | 股票代码（如 `000001`） |
-
-| 字段 | 说明 | 单位 |
+| 标签 | 说明 | 示例 |
 |------|------|------|
-| `open` | 开盘价 | 元 |
-| `close` | 收盘价 | 元 |
-| `high` | 最高价 | 元 |
-| `low` | 最低价 | 元 |
-| `volume` | 成交量 | 股 |
-| `amount` | 成交额 | 元 |
+| `code` | 股票代码 | `000001` |
 
-### Measurement: `stock_dividend`
+**Fields**：
 
-存储个股分红送转数据。
+| 字段名 | 类型 | 说明 | 单位 |
+|--------|------|------|------|
+| `trade_date` | string | 交易日 | YYYY-MM-DD |
+| `open` | float | 开盘价 | 元 |
+| `close` | float | 收盘价 | 元 |
+| `high` | float | 最高价 | 元 |
+| `low` | float | 最低价 | 元 |
+| `volume` | float | 成交量 | 股 |
 
-| 标签 | 说明 |
-|------|------|
-| `code` | 股票代码 |
-
-| 字段 | 说明 | 单位 |
-|------|------|------|
-| `cash` | 现金分红（每股） | 元 |
-| `bonus` | 送股（每股） | 股 |
-| `transfer` | 转增（每股） | 股 |
-| `ex_date` | 除权日 | 日期 |
-| `date` | 股权登记日 | 日期 |
-| `desc` | 分红说明 | 文本 |
-
-### Measurement: `stock_allotment`
-
-存储个股配股数据。
-
-| 标签 | 说明 |
-|------|------|
-| `code` | 股票代码 |
-
-| 字段 | 说明 | 单位 |
-|------|------|------|
-| `ratio` | 配股比例（每股） | 股 |
-| `price` | 配股价 | 元 |
-| `ex_date` | 除权日 | 日期 |
-| `date` | 股权登记日 | 日期 |
-| `pay_start` | 缴款开始日 | 日期 |
-| `pay_end` | 缴款截止日 | 日期 |
-
-### Measurement: `stock_list`
-
-存储股票代码与名称映射。
-
-| 标签 | 说明 |
-|------|------|
-| `code` | 股票代码 |
-
-| 字段 | 说明 |
-|------|------|
-| `name` | 股票名称 |
-| `market` | 市场（SH/SZ） |
+**时间戳**：交易日日期
 
 ---
 
-## 四、数据采集策略
+## 四、Measurement: `stock_dividend` ✅ 已实现
 
-### 全量采集（首次）
+存储个股分红送转数据，API查询时自动写入。
+
+**Tags**：
+
+| 标签 | 说明 |
+|------|------|
+| `code` | 股票代码 |
+
+**Fields**：
+
+| 字段名 | 类型 | 说明 | 单位 |
+|--------|------|------|------|
+| `ex_date` | string | 除权日 | YYYY-MM-DD |
+| `date` | string | 股权登记日 | YYYY-MM-DD |
+| `cash` | float | 现金分红 | 元/股 |
+| `bonus` | float | 送股 | 股/股 |
+| `transfer` | float | 转增 | 股/股 |
+| `desc` | string | 分红说明 | 文本 |
+
+**时间戳**：除权日日期
+
+---
+
+## 五、Measurement: `stock_allotment` ✅ 已实现
+
+存储个股配股数据，API查询时自动写入。
+
+**Tags**：
+
+| 标签 | 说明 |
+|------|------|
+| `code` | 股票代码 |
+
+**Fields**：
+
+| 字段名 | 类型 | 说明 | 单位 |
+|--------|------|------|------|
+| `ex_date` | string | 除权基准日 | YYYY-MM-DD |
+| `date` | string | 股权登记日 | YYYY-MM-DD |
+| `ratio` | float | 配股比例 | 股/股（每股配股数） |
+| `price` | float | 配股价 | 元 |
+| `pay_start` | string | 缴款开始日 | YYYY-MM-DD |
+| `pay_end` | string | 缴款截止日 | YYYY-MM-DD |
+
+**时间戳**：除权基准日
+
+---
+
+## 六、Measurement: `stock_list` ✅ 已实现
+
+存储股票代码与名称映射，启动时自动从 `stock_list.json` 加载。
+
+**Tags**：
+
+| 标签 | 说明 |
+|------|------|
+| `code` | 股票代码 |
+
+**Fields**：
+
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| `name` | string | 股票名称 |
+| `py` | string | 拼音缩写 |
+
+---
+
+## 七、数据采集策略
+
+### 当前采集方式（被动缓存）
+
+目前采用**写穿缓存**策略，用户在浏览器查股票时自动写入：
 
 ```
-1. 采集大盘历史（sse_market）：1999年 ~ 至今，一次性
-2. 采集所有个股K线（stock_kline）：上市日 ~ 至今
-3. 采集所有个股分红配股（stock_dividend / stock_allotment）
-4. 写入股票清单（stock_list）
+用户查股票 → API调外部数据 → 同时写入InfluxDB → 数据自然积累
+```
+
+个股K线/分红/配股：API查询时自动写入 `stock_kline` / `stock_dividend` / `stock_allotment`
+股票清单：服务启动时自动从 `stock_list.json` 加载到 `stock_list`
+大盘数据：由 `sse_market_data_crawler.py` 或 `data_collector.py` 采集到 `sse_market`
+
+### 全量采集（可选）
+
+```
+1. 大盘历史（sse_market）：sse_market_data_crawler.py --start 1999-01-01 --end 2026-12-31
+2. 个股全量：遍历 stock_list.json，逐一查K线/分红/配股（数据自动写入库中）
 ```
 
 ### 增量更新（每日收盘后）
