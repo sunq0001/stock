@@ -217,6 +217,8 @@ def get_stock_kline(code, days=180):
                             "成交量": int(float(item[5])) if item[5] else 0
                         })
                 stock_name = fetch_tencent_stock(market_code)
+                # 写入InfluxDB持久化
+                _save_kline_to_influxdb(code, kline)
                 return {
                     "name": stock_name['name'] if stock_name else f"股票{code}",
                     "kline": kline
@@ -458,6 +460,8 @@ def get_stock_kline_history(code):
                 "最高": float(item[3]), "最低": float(item[4]),
                 "成交量": int(float(item[5])) if len(item) > 5 and item[5] else 0
             })
+        # 写入InfluxDB持久化
+        _save_kline_to_influxdb(code, kline)
         return jsonify({"kline": kline, "all_loaded": True})
     except Exception as e:
         print(f"[ERROR] 获取历史K线失败 {code}: {e}")
@@ -487,6 +491,51 @@ def _safe_float(val):
         return v if not math.isnan(v) else 0.0
     except:
         return 0.0
+
+
+def _market_prefix(code):
+    """根据股票代码判断市场前缀"""
+    return 'sz' if code.startswith(('0', '3')) else 'sh'
+
+
+def _save_kline_to_influxdb(code, kline_list):
+    """将个股K线数据写入InfluxDB（stock_kline measurement）"""
+    try:
+        from influxdb_client import Point
+        from influxdb_client.client.write_api import SYNCHRONOUS
+
+        client = get_influxdb_client()
+        if not client:
+            return
+
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        points = []
+        for item in kline_list:
+            date_str = item.get('日期', '')
+            if not date_str:
+                continue
+            try:
+                ts = datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                continue
+
+            point = Point('stock_kline')
+            point.tag('code', code)
+            point.field('trade_date', date_str)
+            point.field('open', _safe_float(item.get('开盘')))
+            point.field('close', _safe_float(item.get('收盘')))
+            point.field('high', _safe_float(item.get('最高')))
+            point.field('low', _safe_float(item.get('最低')))
+            point.field('volume', _safe_float(item.get('成交量')))
+            point.time(ts)
+            points.append(point)
+
+        if points:
+            write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=points)
+            print(f"[INFO] K线写入InfluxDB: {code} {len(points)}条", flush=True)
+        client.close()
+    except Exception as e:
+        print(f"[WARN] K线写入InfluxDB失败: {code} {e}", flush=True)
 
 @app.route('/api/dividend/<code>')
 def get_dividend_data(code):

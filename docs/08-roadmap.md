@@ -41,7 +41,7 @@
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
-| 个股K线写入 InfluxDB | ⏳ | 当前实时调腾讯API，需改为爬虫写入后查询 |
+| 个股K线写入 InfluxDB | ✅ | API获取数据时自动写入InfluxDB（写穿缓存），已运行正常 |
 | 分红配股写入 InfluxDB | ⏳ | 当前实时调 akshare，需改为爬虫写入后查询 |
 | 全量历史采集器 collector.py | ⏳ | 4000只股票×5000天K线 + 分红配股历史 |
 | 股票清单写入 InfluxDB | ⏳ | 替代 stock_list.json |
