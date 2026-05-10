@@ -763,4 +763,33 @@ if __name__ == '__main__':
         _init_stock_list_influxdb()
     except Exception as e:
         print(f"[WARN] 股票清单初始化跳过: {e}")
+
+    # 启动时检查各Measurement数据状态
+    try:
+        client = get_influxdb_client()
+        if client:
+            q = client.query_api()
+            checks = [
+                ('sse_market', '大盘指标'),
+                ('stock_kline', '个股K线'),
+                ('stock_dividend', '个股分红'),
+                ('stock_allotment', '个股配股'),
+                ('stock_list', '股票清单'),
+            ]
+            print("\nInfluxDB 数据状态:")
+            for meas, label in checks:
+                try:
+                    t = q.query(f'from(bucket:"{INFLUXDB_BUCKET}")|>range(start:0)|>filter(fn:(r)=>r._measurement=="{meas}")|>group()|>count()')
+                    count = 0
+                    for t2 in t:
+                        for r in t2.records:
+                            count += r.get_value() or 0
+                    status = f"{count:,}条" if count > 0 else "空"
+                    print(f"  {label:12s} ({meas:20s}) {status}")
+                except Exception as e2:
+                    print(f"  {label:12s} ({meas:20s}) 查询失败: {e2}")
+            client.close()
+    except Exception as e:
+        print(f"[WARN] 数据状态检查跳过: {e}")
+
     app.run(host='0.0.0.0', port=port, debug=False)
