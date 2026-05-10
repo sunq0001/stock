@@ -537,6 +537,87 @@ def _save_kline_to_influxdb(code, kline_list):
     except Exception as e:
         print(f"[WARN] K线写入InfluxDB失败: {code} {e}", flush=True)
 
+
+def _save_dividend_to_influxdb(code, dividend_list):
+    """将分红数据写入InfluxDB（stock_dividend measurement）"""
+    try:
+        from influxdb_client import Point
+        from influxdb_client.client.write_api import SYNCHRONOUS
+
+        client = get_influxdb_client()
+        if not client:
+            return
+
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        points = []
+        for item in dividend_list:
+            d = item.get('ex_date') or item.get('date')
+            if not d:
+                continue
+            try:
+                ts = datetime.strptime(d, '%Y-%m-%d')
+            except ValueError:
+                continue
+
+            point = Point('stock_dividend')
+            point.tag('code', code)
+            point.field('ex_date', d)
+            point.field('date', item.get('date', ''))
+            point.field('cash', _safe_float(item.get('cash')))
+            point.field('bonus', _safe_float(item.get('bonus')))
+            point.field('transfer', _safe_float(item.get('transfer')))
+            point.field('desc', item.get('desc', ''))
+            point.time(ts)
+            points.append(point)
+
+        if points:
+            write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=points)
+            print(f"[INFO] 分红写入InfluxDB: {code} {len(points)}条", flush=True)
+        client.close()
+    except Exception as e:
+        print(f"[WARN] 分红写入InfluxDB失败: {code} {e}", flush=True)
+
+
+def _save_allotment_to_influxdb(code, allotment_list):
+    """将配股数据写入InfluxDB（stock_allotment measurement）"""
+    try:
+        from influxdb_client import Point
+        from influxdb_client.client.write_api import SYNCHRONOUS
+
+        client = get_influxdb_client()
+        if not client:
+            return
+
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        points = []
+        for item in allotment_list:
+            d = item.get('ex_date') or item.get('date')
+            if not d:
+                continue
+            try:
+                ts = datetime.strptime(d, '%Y-%m-%d')
+            except ValueError:
+                continue
+
+            point = Point('stock_allotment')
+            point.tag('code', code)
+            point.field('ex_date', d)
+            point.field('date', item.get('date', ''))
+            point.field('ratio', _safe_float(item.get('ratio')))
+            point.field('price', _safe_float(item.get('price')))
+            point.field('pay_start', item.get('pay_start', ''))
+            point.field('pay_end', item.get('pay_end', ''))
+            point.time(ts)
+            points.append(point)
+
+        if points:
+            write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=points)
+            print(f"[INFO] 配股写入InfluxDB: {code} {len(points)}条", flush=True)
+        client.close()
+    except Exception as e:
+        print(f"[WARN] 配股写入InfluxDB失败: {code} {e}", flush=True)
+
+
 @app.route('/api/dividend/<code>')
 def get_dividend_data(code):
     """获取个股分红送转数据 - 使用akshare"""
@@ -560,6 +641,8 @@ def get_dividend_data(code):
                 'desc': _safe_str(row.get('实施方案分红说明')),
                 'report_time': _safe_str(row.get('报告时间'))
             })
+        # 写入InfluxDB持久化
+        _save_dividend_to_influxdb(code, dividends)
         return jsonify({"dividends": dividends})
     except ImportError:
         return jsonify({"dividends": [], "error": "akshare未安装"})
@@ -587,6 +670,8 @@ def get_allotment_data(code):
                 'pay_start': _fmt_date(row.get('配股缴款起始日')),
                 'pay_end': _fmt_date(row.get('配股缴款截止日')),
             })
+        # 写入InfluxDB持久化
+        _save_allotment_to_influxdb(code, allotments)
         return jsonify({"allotments": allotments})
     except ImportError:
         return jsonify({"allotments": [], "error": "akshare未安装"})
