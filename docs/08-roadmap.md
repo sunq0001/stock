@@ -44,7 +44,7 @@
 | 个股K线写入 InfluxDB | ✅ | API获取数据时自动写入InfluxDB（写穿缓存），已运行正常 |
 | 分红配股写入 InfluxDB | ✅ | API获取数据时自动写入InfluxDB（stock_dividend / stock_allotment） |
 | 全量历史采集器 collector.py | ⏳ | 4000只股票×5000天K线 + 分红配股历史 |
-| 股票清单写入 InfluxDB | ⏳ | 替代 stock_list.json |
+| 股票清单写入 InfluxDB | ✅ | 启动时自动从stock_list.json加载写入（11018条） |
 
 ## 阶段四：自动初始化 ⏳
 

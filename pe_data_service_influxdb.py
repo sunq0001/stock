@@ -618,6 +618,54 @@ def _save_allotment_to_influxdb(code, allotment_list):
         print(f"[WARN] 配股写入InfluxDB失败: {code} {e}", flush=True)
 
 
+def _init_stock_list_influxdb():
+    """启动时检查：如果InfluxDB中无股票清单，则从stock_list.json加载写入"""
+    try:
+        from influxdb_client import Point
+        from influxdb_client.client.write_api import SYNCHRONOUS
+        client = get_influxdb_client()
+        if not client:
+            return
+        # 检查是否已有数据
+        query_api = client.query_api()
+        tables = query_api.query(f'''
+            from(bucket:"{INFLUXDB_BUCKET}")
+              |> range(start:0)
+              |> filter(fn:(r)=>r._measurement=="stock_list")
+              |> limit(n:1)
+        ''')
+        if tables and any(t.records for t in tables):
+            print("[INFO] 股票清单已在InfluxDB中，跳过初始化")
+            client.close()
+            return
+
+        # 从json文件加载
+        list_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stock_list.json')
+        if not os.path.exists(list_path):
+            print("[WARN] stock_list.json 不存在，跳过股票清单初始化")
+            client.close()
+            return
+
+        with open(list_path, 'r', encoding='utf-8') as f:
+            stocks = json.load(f)
+
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        points = []
+        for s in stocks:
+            point = Point('stock_list')
+            point.tag('code', s['c'])
+            point.field('name', s['n'])
+            point.field('py', s.get('p', ''))
+            points.append(point)
+
+        if points:
+            write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=points)
+            print(f"[INFO] 股票清单写入InfluxDB: {len(points)}条", flush=True)
+        client.close()
+    except Exception as e:
+        print(f"[WARN] 股票清单初始化失败: {e}", flush=True)
+
+
 @app.route('/api/dividend/<code>')
 def get_dividend_data(code):
     """获取个股分红送转数据 - 使用akshare"""
@@ -710,4 +758,9 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 18082))
     print(f"启动服务，数据源: {DATA_SOURCE}")
     print(f"服务端口: {port}")
+    # 启动时检查并初始化股票清单到InfluxDB
+    try:
+        _init_stock_list_influxdb()
+    except Exception as e:
+        print(f"[WARN] 股票清单初始化跳过: {e}")
     app.run(host='0.0.0.0', port=port, debug=False)
